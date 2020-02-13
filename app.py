@@ -10,9 +10,12 @@ sns.set()
 # Global Parameters #####################################################
 # Names of the files to import
 data_files_names = ['HistoricalQuotes_SPY_5Y_02112020.csv', 'HistoricalQuotes_TSLA_5Y_02112020.csv']
-columns_being_prices = ['Close']
+# List of columns from data source being days
+columns_being_prices = ['Close', 'Open', 'High', 'Low']
+# Time horizon (in open trading days)
+time_horizon = 10
 
-# Read the CSV file #######################################################
+# Read the CSV file  & Prepare data #######################################################
 def read_nasdaq_csv(file_name):
     df0 = pd.read_csv(file_name)
     # Re-order from oldest to newest, and re-indexing
@@ -22,10 +25,10 @@ def read_nasdaq_csv(file_name):
     df0 = df0.rename(columns={'Close/Last': 'Close'})
     # Apply the function on the index to convert the string date into a proper date
     df0.index = df0.index.map(dstring_to_date_NASDAQ)
-    # Apply the function on the price columns to convert the string price into a proper float price
-    df0['Close'] = df0['Close'].map(prince_as_float_NASDAQ)
-    # Take a sub-set of the data and make it clear it is a copy
-    df1 = df0.tail(10).copy()
+    # Apply the function on the price columns to make sure prices are float
+    df0[columns_being_prices] = df0[columns_being_prices].applymap(price_as_float_NASDAQ)
+    # Take a sub-set of the data (for the time horizon) and make it clear it is a copy
+    df1 = df0.tail(time_horizon).copy()
     return df1
 ############################################################################
 
@@ -51,7 +54,7 @@ def dstring_to_date_NASDAQ(dstr):
 #########################################################################
 
 # TRANSFORM PRICE STRING INTO FLOAT ##########################################
-def prince_as_float_NASDAQ(price):
+def price_as_float_NASDAQ(price):
     ''' Method that makes sure price value is a float '''
     # Removes the $ sign from the string
     if type(price) == str:
@@ -106,12 +109,12 @@ def plot_my_df(df):
 
 # MAIN #######################################################
 # Read data
-spy_df = read_nasdaq_csv('HistoricalQuotes_SPY_5Y_02112020.csv')
-tsla_df = read_nasdaq_csv('HistoricalQuotes_TSLA_5Y_02112020.csv')
+spy_df = read_nasdaq_csv(data_files_names[0])
+tsla_df = read_nasdaq_csv(data_files_names[1])
 # Add change columns
 spy_df = add_change_column(spy_df)
-#tsla_df = add_change_column(tsla_df)
+tsla_df = add_change_column(tsla_df)
 # Join dataframes into an overall dataframe
-#overall_df = spy_df.join(tsla.df, on='Date')
+#overall_df = spy_df.join(tsla_df, on='Date')
 
 #plot_my_df(spy_df)
