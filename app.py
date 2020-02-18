@@ -1,9 +1,11 @@
 from builtins import str
-import pandas as pd
 import numpy as np
+import pandas as pd
 import re
 import datetime
 import matplotlib.pyplot as plt
+# Close all figure windows
+plt.close('all')
 
 # Global Parameters #####################################################
 # Names of the files to import
@@ -11,13 +13,13 @@ data_files_names = ['HistoricalQuotes_SPY_5Y_02112020.csv', 'HistoricalQuotes_TS
 # List of columns from data source being days
 columns_being_prices = ['Close', 'Open', 'High', 'Low']
 # Time horizon (in open trading days)
-time_horizon = 60
+time_horizon = 200
 # Setting what is considered to be a SPY large move in one day = -0.5%
 spy_large_move = -0.5
 # Setting the target profit for TSLA when taking a position = + 5%
 target_profit_taking = 5.0
-# Starting capital to invest: $5,000
-starting_capital = 5000.0
+# Starting capital to invest: $10,000
+starting_capital = 10000.0
 
 # Read the CSV file  & Prepare data #######################################################
 def read_nasdaq_csv(file_name):
@@ -130,8 +132,22 @@ def add_strategy_columns(rs_df):
     # Iterate over rows
     for i,j in rs_df.iterrows():
 
+        # WAIT AND DO NOTHING
+        if in_out_status == 'OUT' and j['RS Signal'] == False :
+            # NO ACTION
+            buy_sell_actions_list.append('-')
+            # QTY
+            buy_sell_qty_list.append(position_qty)
+            # POSITION VALUE
+            position_value_list.append(position_value)
+            # CASH AT HANDS
+            cash_at_hands_list.append(cash_at_hands)
+            # TOTAL EQUITY
+            total_equity = cash_at_hands + position_value
+            total_equity_list.append(total_equity)
+
         # ENTRY POINT (BUY)
-        if j['RS Signal'] == True and in_out_status == 'OUT':
+        elif in_out_status == 'OUT' and j['RS Signal'] == True :
             # BUY ACTION
             in_out_status = 'IN'
             buy_sell_actions_list.append('BUY')
@@ -149,37 +165,38 @@ def add_strategy_columns(rs_df):
             total_equity = cash_at_hands + position_value
             total_equity_list.append(total_equity)
 
+        # HOLD
+        elif in_out_status =='IN' and (position_value - entry_point_position_value) < 1000:
+            # HOLD ACTION
+            buy_sell_actions_list.append('HOLD')
+            # QTY
+            buy_sell_qty_list.append(position_qty)
+            # POSITION VALUE
+            position_value = position_qty * j['TSLA Close']
+            position_value_list.append(position_value)
+            # CASH AT HANDS
+            cash_at_hands_list.append(cash_at_hands)
+            # TOTAL EQUITY
+            total_equity = cash_at_hands + position_value
+            total_equity_list.append(total_equity)
 
         # SELL (EXIT POINT)
         elif in_out_status == 'IN' and (position_value - entry_point_position_value) >= 1000:
             # SELL ACTION
             in_out_status = 'OUT'
             buy_sell_actions_list.append('SELL')
-
-            buy_sell_qty_list.append('-')
-            position_value_list.append('-')
-            cash_at_hands_list.append('-')
-            total_equity_list.append('-')
-
-        # HOLD
-        elif in_out_status =='IN':
-            buy_sell_actions_list.append('HOLD')
-            buy_sell_qty_list.append('-')
-            # Update position value and add to the list
-            position_value = position_qty * j['TSLA Close']
+            # CASH AT HANDS
+            cash_at_hands = cash_at_hands + (position_qty * j['TSLA Close'])
+            cash_at_hands_list.append(cash_at_hands)
+            # QTY
+            position_qty = 0
+            buy_sell_qty_list.append(position_qty)
+            # POSITION VALUE
+            position_value = 0
             position_value_list.append(position_value)
-            cash_at_hands_list.append('-')
-            # Update total equity and add to the list
+            # TOTAL EQUITY
             total_equity = cash_at_hands + position_value
             total_equity_list.append(total_equity)
-
-        # WAIT AND DO NOTHING
-        elif in_out_status =='OUT':
-            buy_sell_actions_list.append('-')
-            buy_sell_qty_list.append('-')
-            position_value_list.append('-')
-            cash_at_hands_list.append('-')
-            total_equity_list.append('-')
 
     # Add new columns to the DataFrame
     rs_df['Action'] = buy_sell_actions_list
@@ -223,33 +240,6 @@ rs_df = add_relative_stregth_column(rs_df)
 # Add strategy BUY SELL actions column
 rs_df = add_strategy_columns(rs_df)
 
-
-
-
-
-
-
-
-# PLOT ############################################
-'''
-def plot_my_df(df):
-    # Plot on ax1
-    ax1 = sns.lineplot(x=df.index, y='Close', data=df)
-
-    # Creating a new axis sharing the same x
-    ax2 = ax1.twinx()
-    # Creating a Custom Palette
-    custom_palette = []
-    for change in df['Change']:
-        if change <= 0:
-            custom_palette.append('r')
-        else:
-            custom_palette.append('g')
-    # Plot on ax2
-    sns.barplot(x=df.index, y='Change', data=df, ax=ax2, palette=custom_palette)
-    # Redefine y axis for ax2
-    ax2.set(ylim=(-3, 3))
-    # Hide the grid on ax2
-    ax2.grid(False)
-'''
-##############################################################
+# PLOT
+# Plot the selected columns
+rs_df.loc[ : , ['TSLA Buy and Hold Value', 'Total Equity'] ].plot()
