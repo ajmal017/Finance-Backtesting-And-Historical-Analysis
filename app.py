@@ -218,7 +218,7 @@ metadata_df = create_master_data_df(data_files_names)
 # Create a list of Data Frames for each Equity
 df_list = create_df_list(metadata_df)
 # Add the SPY Change to all the Equity Data Frames
-df_list = add_SPY_change(df_list)
+#df_list = add_SPY_change(df_list)
 # Generate the Relative strength signal and add corresponding column
 
 
