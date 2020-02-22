@@ -9,8 +9,8 @@ plt.close('all')
 
 # GLOBAL PARAMETERS ####################################################################
 # Names of the files to import (Yahoo Finance csv files)
-data_files_names = ['SPY.csv',
-                    'TSLA.csv',
+data_files_names = ['TSLA.csv',
+                    'SPY.csv',
                     'BA.csv',
                     'MCD.csv'
                     ]
@@ -201,7 +201,27 @@ def create_df_list(meta_data_df):
 def add_SPY_change(df_list):
     '''Add the SPY Change column to each Data Frame and return the list'''
     # Get the index of the SPY Data Frame in the list
+    index_of_SPY = find_index_of_equity('SPY')
+    # Get the SPY data frame, only the SPY change column
+    spy_df = df_list[index_of_SPY]
+    # Extract the Chhange column of SPY and rename the column
+    spy_df_extract = spy_df['Change'].rename('SPY Change')
+    print(spy_df_extract)
+    # Iterate over all the dataframes and Merge the SPY columns into each of the Equity Data Frames
+    for i in range(len(df_list)):
+        df_list[i] = pd.merge(df_list[i], spy_df_extract, on='Date')
+    return df_list
 
+
+def find_index_of_equity(equity_str):
+    '''Finds the index of an equity based on its name'''
+    # Get a Series of boolean indicating where SPY equity is found
+    where_is_equity_boolean_series = metadata_df['Equity'] == equity_str
+    # Extract the Series indexes where equity was found
+    indexes_where_found = metadata_df[where_is_equity_boolean_series].index
+    # Return the int index where the first occurence was found
+    index_found = indexes_where_found[0]
+    return index_found
 
 
 def is_showing_rstrength(spy_change, stock_change, spy_large_move):
@@ -218,7 +238,7 @@ metadata_df = create_master_data_df(data_files_names)
 # Create a list of Data Frames for each Equity
 df_list = create_df_list(metadata_df)
 # Add the SPY Change to all the Equity Data Frames
-#df_list = add_SPY_change(df_list)
+df_list = add_SPY_change(df_list)
 # Generate the Relative strength signal and add corresponding column
 
 
