@@ -15,7 +15,7 @@ data_files_names = ['TSLA.csv',
                     'MCD.csv'
                     ]
 # Time horizon used (in open trading days)
-time_horizon = 10
+time_horizon = 20
 # Setting what is considered to be a SPY large move in one day = -0.5%
 spy_large_move = -0.5
 # Setting the target profit for TSLA when taking a position = + 5%
@@ -56,6 +56,20 @@ def dstring_to_date(dstr):
     # Convert into a datetime object and return it
     return datetime.datetime.strptime(dstr, format_of_date_string)
 
+def create_df_list(meta_data_df):
+    '''Method that creates the list of Data Frames, one per Equity'''
+    # Initialize an empty list to store the Data Frames
+    df_list = []
+    # Iterate over the equity list
+    for index, equity_row in metadata_df.iterrows():
+        # create Data Frame from reading the csv file
+        df0 = read_data_source_csv(equity_row['File Name'])
+        # Insert a column with Equity name in the first position
+        df0.insert(0,'Equity',equity_row['Equity'])
+        # Add the Data Frame to the list
+        df_list.append(df0)
+    return df_list
+
 def add_change_column(df):
     ''' Calculate the Change from Day Close to Day Close and returns Data Frame with corresponding column added '''
     # Be n the length of the data frame
@@ -71,21 +85,54 @@ def add_change_column(df):
             print('Previous Close = 0, Cannot calculate change. ZeroDivisionError.')
     return df
 
-def add_relative_stregth_column(df):
-    ''' Method calculating the relative strength signal and returns Data Frame with corresponding column added '''
-    # Initiate a list to store the signals
-    rs_signal_list = []
-    # Iterate over the rows to calculate if signal or not
-    for i,j in df.iterrows():
-        spy_change = j['SPY Change']
-        stock_change = j['TSLA Change']
-        if is_showing_rstrength(spy_change,stock_change, spy_large_move) == True:
-            rs_signal_list.append(True)
-        else:
-            rs_signal_list.append(False)
-    # Add the column to the dataset
-    df['RS Signal'] = rs_signal_list
-    return df
+def add_SPY_change(df_list):
+    '''Add the SPY Change column to each Data Frame and return the list'''
+    # Get the index of the SPY Data Frame in the list
+    index_of_SPY = find_index_of_equity('SPY')
+    # Get the SPY data frame, only the SPY change column
+    spy_df = df_list[index_of_SPY]
+    # Extract the Chhange column of SPY and rename the column
+    spy_df_extract = spy_df['Change'].rename('SPY Change')
+    print(spy_df_extract)
+    # Iterate over all the dataframes and Merge the SPY columns into each of the Equity Data Frames
+    for i in range(len(df_list)):
+        df_list[i] = pd.merge(df_list[i], spy_df_extract, on='Date')
+    return df_list
+
+def find_index_of_equity(equity_str):
+    '''Finds the index of an equity based on its name'''
+    # Get a Series of boolean indicating where SPY equity is found
+    where_is_equity_boolean_series = metadata_df['Equity'] == equity_str
+    # Extract the Series indexes where equity was found
+    indexes_where_found = metadata_df[where_is_equity_boolean_series].index
+    # Return the int index where the first occurence was found
+    index_found = indexes_where_found[0]
+    return index_found
+
+def add_relative_strength_column(df_list):
+    ''' Method calculating the relative strength signal and returns the list of Data Frames with corresponding column added '''
+    for df in df_list:
+        # Initiate a list to store the signals
+        rs_signal_list = []
+        # Iterate over the rows to calculate if signal or not
+        for i, j in df.iterrows():
+            spy_change = j['SPY Change']
+            stock_change = j['Change']
+            if is_showing_rstrength(spy_change, stock_change, spy_large_move) == True:
+                rs_signal_list.append(True)
+            else:
+                rs_signal_list.append(False)
+        # Add the column to the dataset
+        df['RS Signal'] = rs_signal_list
+    return df_list
+
+def is_showing_rstrength(spy_change, stock_change, spy_large_move):
+    ''' Method returning True if stock showing relative strength versus a SPY large move '''
+    # If the SPY is doing a large move down
+    if spy_change <= spy_large_move and stock_change >= 0:
+        return True
+    else:
+        return False
 
 def add_strategy_columns(df):
     ''' Method calculating the strategy columns (action, equity, ...) and returns Data Frame with corresponding columns added '''
@@ -184,53 +231,6 @@ def add_strategy_columns(df):
 
     return df
 
-def create_df_list(meta_data_df):
-    '''Method that creates the list of Data Frames, one per Equity'''
-    # Initialize an empty list to store the Data Frames
-    df_list = []
-    # Iterate over the equity list
-    for index, equity_row in metadata_df.iterrows():
-        # create Data Frame from reading the csv file
-        df0 = read_data_source_csv(equity_row['File Name'])
-        # Insert a column with Equity name in the first position
-        df0.insert(0,'Equity',equity_row['Equity'])
-        # Add the Data Frame to the list
-        df_list.append(df0)
-    return df_list
-
-def add_SPY_change(df_list):
-    '''Add the SPY Change column to each Data Frame and return the list'''
-    # Get the index of the SPY Data Frame in the list
-    index_of_SPY = find_index_of_equity('SPY')
-    # Get the SPY data frame, only the SPY change column
-    spy_df = df_list[index_of_SPY]
-    # Extract the Chhange column of SPY and rename the column
-    spy_df_extract = spy_df['Change'].rename('SPY Change')
-    print(spy_df_extract)
-    # Iterate over all the dataframes and Merge the SPY columns into each of the Equity Data Frames
-    for i in range(len(df_list)):
-        df_list[i] = pd.merge(df_list[i], spy_df_extract, on='Date')
-    return df_list
-
-
-def find_index_of_equity(equity_str):
-    '''Finds the index of an equity based on its name'''
-    # Get a Series of boolean indicating where SPY equity is found
-    where_is_equity_boolean_series = metadata_df['Equity'] == equity_str
-    # Extract the Series indexes where equity was found
-    indexes_where_found = metadata_df[where_is_equity_boolean_series].index
-    # Return the int index where the first occurence was found
-    index_found = indexes_where_found[0]
-    return index_found
-
-
-def is_showing_rstrength(spy_change, stock_change, spy_large_move):
-    ''' Method returning True if stock showing relative strength versus a SPY large move '''
-    # If the SPY is doing a large move down
-    if spy_change <= spy_large_move and stock_change >= 0:
-        return True
-    else:
-        return False
 
 # MAIN ################################################################################################3
 # Create the Metada Data Frame (with Equity name, File name, etc...)
@@ -240,18 +240,13 @@ df_list = create_df_list(metadata_df)
 # Add the SPY Change to all the Equity Data Frames
 df_list = add_SPY_change(df_list)
 # Generate the Relative strength signal and add corresponding column
-
-
-
+df_list = add_relative_strength_column(df_list)
 # Run the strategy and add corresponding columns (BUY/SELL action, position value, ...)
-
 
 # Create Test DF for debugging
 test_df0 = df_list[0]
 test_df1 = df_list[1]
 test_df2 = df_list[3]
-
-
 
 '''
 # Initial position taken - max possible with capital to invest
@@ -266,7 +261,7 @@ rs_df = pd.DataFrame({'SPY Close': spy_df['Close'],
                       'TSLA Buy and Hold Value': tsla_df['Close'] * initial_position_qty
                       })
 # Add column with relative strength signal column
-rs_df = add_relative_stregth_column(rs_df)
+rs_df = add_relative_strength_column(rs_df)
 # Add strategy BUY SELL actions column
 rs_df = add_strategy_columns(rs_df)
 
