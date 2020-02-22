@@ -9,8 +9,8 @@ plt.close('all')
 
 # GLOBAL PARAMETERS ####################################################################
 # Names of the files to import (Yahoo Finance csv files)
-data_files_names = ['TSLA.csv',
-                    'SPY.csv',
+data_files_names = ['SPY.csv',
+                    'TSLA.csv',
                     'BA.csv',
                     'MCD.csv'
                     ]
@@ -21,7 +21,7 @@ spy_large_move = -0.5
 # Setting the target profit for TSLA when taking a position = + 5%
 target_profit_taking = 5.0
 # Starting capital to invest: $10,000
-starting_capital = 10000.0
+starting_capital = 5000.0
 #####################################################################################
 
 # FUNCTIONS DEFINITION ################################################################
@@ -109,7 +109,7 @@ def find_index_of_equity(equity_str):
     index_found = indexes_where_found[0]
     return index_found
 
-def add_relative_strength_column(df_list):
+def generate_relative_strength_column(df_list):
     ''' Method calculating the relative strength signal and returns the list of Data Frames with corresponding column added '''
     for df in df_list:
         # Initiate a list to store the signals
@@ -134,139 +134,137 @@ def is_showing_rstrength(spy_change, stock_change, spy_large_move):
     else:
         return False
 
-def add_strategy_columns(df):
+def generate_strategy_columns(df_list):
     ''' Method calculating the strategy columns (action, equity, ...) and returns Data Frame with corresponding columns added '''
-    # Buying when getting the signal, selling at the profit target
+    for df in df_list:
+        # Buying when getting the signal, selling at the profit target
+        
+        # Init my tracking variables
+        in_out_status = 'OUT'
+        position_qty = 0
+        entry_point_position_value = 0
+        position_value = 0
+        cash_at_hands = starting_capital
+        total_equity = position_value + cash_at_hands
+    
+        # Initialize strategy columns
+        buy_sell_actions_list = []
+        buy_sell_qty_list = []
+        position_value_list = []
+        cash_at_hands_list = []
+        total_equity_list = []
+    
+        # Iterate over rows
+        for i, row in df.iterrows():
 
-    # Init my tracking variables
-    in_out_status = 'OUT'
-    position_qty = 0
-    entry_point_position_value = 0
-    position_value = 0
-    cash_at_hands = starting_capital
-    total_equity = position_value + cash_at_hands
+            # Evaluate positon value that day (for condition testing in if's below)
+            position_value = position_qty * row['Close']
 
-    # Initialize strategy columns
-    buy_sell_actions_list = []
-    buy_sell_qty_list = []
-    position_value_list = []
-    cash_at_hands_list = []
-    total_equity_list = []
+            # WAIT AND DO NOTHING
+            if in_out_status == 'OUT' and row['RS Signal'] == False :
+                # NO ACTION
+                buy_sell_actions_list.append('-')
+                # QTY
+                buy_sell_qty_list.append(position_qty)
+                # POSITION VALUE
+                position_value_list.append(position_value)
+                # CASH AT HANDS
+                cash_at_hands_list.append(cash_at_hands)
+                # Strategy Equity
+                total_equity = cash_at_hands + position_value
+                total_equity_list.append(total_equity)
+    
+            # ENTRY POINT (BUY)
+            elif in_out_status == 'OUT' and row['RS Signal'] == True :
+                # BUY ACTION
+                in_out_status = 'IN'
+                buy_sell_actions_list.append('BUY')
+                # QTY
+                position_qty = int(cash_at_hands / row['Close'])
+                buy_sell_qty_list.append(position_qty)
+                # POSITION VALUE
+                position_value = position_qty * row['Close']
+                entry_point_position_value = position_value
+                position_value_list.append(position_value)
+                # CASH AT HANDS
+                cash_at_hands = cash_at_hands - position_value
+                cash_at_hands_list.append(cash_at_hands)
+                # Strategy Equity
+                total_equity = cash_at_hands + position_value
+                total_equity_list.append(total_equity)
+    
+            # HOLD
+            elif in_out_status == 'IN' and (position_value - entry_point_position_value) < 1000:
+                # HOLD ACTION
+                buy_sell_actions_list.append('HOLD')
+                # QTY
+                buy_sell_qty_list.append(position_qty)
+                # POSITION VALUE
+                position_value = position_qty * row['Close']
+                position_value_list.append(position_value)
+                # CASH AT HANDS
+                cash_at_hands_list.append(cash_at_hands)
+                # Strategy Equity
+                total_equity = cash_at_hands + position_value
+                total_equity_list.append(total_equity)
+    
+            # SELL (EXIT POINT)
+            elif in_out_status == 'IN' and (position_value - entry_point_position_value) >= 1000:
+                # SELL ACTION
+                in_out_status = 'OUT'
+                buy_sell_actions_list.append('SELL')
+                # CASH AT HANDS
+                cash_at_hands = cash_at_hands + (position_qty * row['Close'])
+                cash_at_hands_list.append(cash_at_hands)
+                # QTY
+                position_qty = 0
+                buy_sell_qty_list.append(position_qty)
+                # POSITION VALUE
+                position_value = 0
+                position_value_list.append(position_value)
+                # Strategy Equity
+                total_equity = cash_at_hands + position_value
+                total_equity_list.append(total_equity)
+    
+        # Add new columns to the DataFrame
+        df['Action'] = buy_sell_actions_list
+        df['Qty'] = buy_sell_qty_list
+        df['Position Value'] = position_value_list
+        df['Cash at hands'] = cash_at_hands_list
+        df['Strategy Equity'] = total_equity_list
 
-    # Iterate over rows
-    for i,j in df.iterrows():
+    return df_list
 
-        # WAIT AND DO NOTHING
-        if in_out_status == 'OUT' and j['RS Signal'] == False :
-            # NO ACTION
-            buy_sell_actions_list.append('-')
-            # QTY
-            buy_sell_qty_list.append(position_qty)
-            # POSITION VALUE
-            position_value_list.append(position_value)
-            # CASH AT HANDS
-            cash_at_hands_list.append(cash_at_hands)
-            # TOTAL EQUITY
-            total_equity = cash_at_hands + position_value
-            total_equity_list.append(total_equity)
-
-        # ENTRY POINT (BUY)
-        elif in_out_status == 'OUT' and j['RS Signal'] == True :
-            # BUY ACTION
-            in_out_status = 'IN'
-            buy_sell_actions_list.append('BUY')
-            # QTY
-            position_qty = int(cash_at_hands / j['TSLA Close'])
-            buy_sell_qty_list.append(position_qty)
-            # POSITION VALUE
-            position_value = position_qty * j['TSLA Close']
-            entry_point_position_value = position_value
-            position_value_list.append(position_value)
-            # CASH AT HANDS
-            cash_at_hands = cash_at_hands - position_value
-            cash_at_hands_list.append(cash_at_hands)
-            # TOTAL EQUITY
-            total_equity = cash_at_hands + position_value
-            total_equity_list.append(total_equity)
-
-        # HOLD
-        elif in_out_status =='IN' and (position_value - entry_point_position_value) < 1000:
-            # HOLD ACTION
-            buy_sell_actions_list.append('HOLD')
-            # QTY
-            buy_sell_qty_list.append(position_qty)
-            # POSITION VALUE
-            position_value = position_qty * j['TSLA Close']
-            position_value_list.append(position_value)
-            # CASH AT HANDS
-            cash_at_hands_list.append(cash_at_hands)
-            # TOTAL EQUITY
-            total_equity = cash_at_hands + position_value
-            total_equity_list.append(total_equity)
-
-        # SELL (EXIT POINT)
-        elif in_out_status == 'IN' and (position_value - entry_point_position_value) >= 1000:
-            # SELL ACTION
-            in_out_status = 'OUT'
-            buy_sell_actions_list.append('SELL')
-            # CASH AT HANDS
-            cash_at_hands = cash_at_hands + (position_qty * j['TSLA Close'])
-            cash_at_hands_list.append(cash_at_hands)
-            # QTY
-            position_qty = 0
-            buy_sell_qty_list.append(position_qty)
-            # POSITION VALUE
-            position_value = 0
-            position_value_list.append(position_value)
-            # TOTAL EQUITY
-            total_equity = cash_at_hands + position_value
-            total_equity_list.append(total_equity)
-
-    # Add new columns to the DataFrame
-    df['Action'] = buy_sell_actions_list
-    df['Qty'] = buy_sell_qty_list
-    df['Position Value'] = position_value_list
-    df['Cash at hands'] = cash_at_hands_list
-    df['Total Equity'] = total_equity_list
-
-    return df
-
+def generate_buy_and_hold_column(df_list):
+    '''Methods that adds the Buy and Hold Equity column based on starting capital '''
+    for df in df_list:
+        position_qty = int(starting_capital / df['Close'][0])
+        df['Buy and Hold Equity'] = position_qty * df['Close']
+    return df_list
 
 # MAIN ################################################################################################3
+
 # Create the Metada Data Frame (with Equity name, File name, etc...)
 metadata_df = create_master_data_df(data_files_names)
 # Create a list of Data Frames for each Equity
 df_list = create_df_list(metadata_df)
-# Add the SPY Change to all the Equity Data Frames
+# Add the SPY Change
 df_list = add_SPY_change(df_list)
-# Generate the Relative strength signal and add corresponding column
-df_list = add_relative_strength_column(df_list)
-# Run the strategy and add corresponding columns (BUY/SELL action, position value, ...)
+# Generate the Relative strength signal 
+df_list = generate_relative_strength_column(df_list)
+# Run the strategy and add corresponding columns
+df_list = generate_strategy_columns(df_list)
+# Add Buy and Hold Equity
+df_list = generate_buy_and_hold_column(df_list)
 
 # Create Test DF for debugging
-test_df0 = df_list[0]
 test_df1 = df_list[1]
-test_df2 = df_list[3]
-
-'''
-# Initial position taken - max possible with capital to invest
-initial_position_qty = int(starting_capital / tsla_df['Close'][0])
-
-# Create dataframe for my relative strength signal
-# Initiate my relative strength Data Frame with the spy change Series of data
-rs_df = pd.DataFrame({'SPY Close': spy_df['Close'],
-                      'TSLA Close': tsla_df['Close'],
-                      'SPY Change': spy_df['Change'],
-                      'TSLA Change': tsla_df['Change'],
-                      'TSLA Buy and Hold Value': tsla_df['Close'] * initial_position_qty
-                      })
-# Add column with relative strength signal column
-rs_df = add_relative_strength_column(rs_df)
-# Add strategy BUY SELL actions column
-rs_df = add_strategy_columns(rs_df)
+test_df2 = df_list[2]
+test_df3 = df_list[3]
 
 # PLOT
-# Plot the selected columns
-rs_df.loc[ : , ['TSLA Buy and Hold Value', 'Total Equity'] ].plot()
-'''
+test_df1[['Buy and Hold Equity', 'Strategy Equity']].plot()
+test_df2[['Buy and Hold Equity', 'Strategy Equity']].plot()
+test_df3[['Buy and Hold Equity', 'Strategy Equity']].plot()
+
 #######################################################################################################3
