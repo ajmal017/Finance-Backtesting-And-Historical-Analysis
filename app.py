@@ -144,7 +144,10 @@ def generate_strategy_columns(df_list):
         position_qty = 0
         entry_point_position_value = 0
         position_value = 0
-        cash_at_hands = starting_capital
+        # Adjusting the starting capital in order to compare apples to apples between "Buy and Hold" and "Strategy"
+        buy_and_hold_initial_qty = int(starting_capital / df['Close'][0])
+        adjusted_starting_capital = buy_and_hold_initial_qty * df['Close'][0]
+        cash_at_hands = adjusted_starting_capital
         total_equity = position_value + cash_at_hands
     
         # Initialize strategy columns
