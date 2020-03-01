@@ -33,5 +33,4 @@ fig = plt.figure() # an empty figure with no axes
 
 
 x = test_df1['Date']
-y =
 plt.show()
