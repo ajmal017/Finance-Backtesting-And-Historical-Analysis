@@ -267,7 +267,7 @@ test_df3 = df_list[3]
 
 # PLOT
 test_df1[['Buy and Hold Equity', 'Strategy Equity']].plot()
-test_df2[['Buy and Hold Equity', 'Strategy Equity']].plot()
-test_df3[['Buy and Hold Equity', 'Strategy Equity']].plot()
+#test_df2[['Buy and Hold Equity', 'Strategy Equity']].plot()
+#test_df3[['Buy and Hold Equity', 'Strategy Equity']].plot()
 
 #######################################################################################################3
