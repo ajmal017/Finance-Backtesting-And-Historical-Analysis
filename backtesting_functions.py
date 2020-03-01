@@ -1,8 +1,6 @@
-from builtins import str
 import numpy as np
 import pandas as pd
 import datetime
-import matplotlib.pyplot as plt
 
 # FUNCTIONS DEFINITION ################################################################
 def create_master_data_df(data_files_names):
