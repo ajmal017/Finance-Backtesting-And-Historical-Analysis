@@ -1,6 +1,8 @@
-import matplotlib.pyplot as plt
-plt.close('all')        # Close all figure windows
-from backtesting_functions import *     # importing my custom functions
+import matplotlib
+matplotlib.use("TkAgg") # Use that Backend for rendering, to avoid crashing of figure in PyCharm
+from matplotlib import pyplot as plt # Import pyplot
+plt.close('all') # Close all figure windows
+from backtesting_functions import * # importing my custom functions
 
 # PARAMETERS ####################################################################
 
@@ -29,8 +31,15 @@ test_df2 = df_list[2]
 test_df3 = df_list[3]
 
 # PLOT #########################################################################
-fig = plt.figure() # an empty figure with no axes
 
+pd.plotting.register_matplotlib_converters() # register converters (execution was giving me warning and that seems like the fix)
 
-x = test_df1['Date']
-plt.show()
+fig, ax_lst = plt.subplots(2, 2) # a figure with a 2x2 grid of axes
+fig.suptitle('Backtesting result on selected stocks') # setting the overall figure suptitle
+x = test_df1.index.values # ndarray with dates (index)
+y = test_df1['Close'] # series with Close values
+for j in range(ax_lst.shape[1]): # iterate over columns j of the grid of Axes
+    for i in range(ax_lst.shape[0]): # iterate over rows i of the grid of Axes
+        ax_lst[i, j].set_title('Title Stock in: ' + str(i) + ', ' + str(j)) # set the title of axes in i, j
+        ax_lst[i, j].plot(x,y,) # plot on axes in position i, j
+plt.show() # show the plot
