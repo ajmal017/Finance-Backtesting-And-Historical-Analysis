@@ -2,6 +2,13 @@ import numpy as np
 import pandas as pd
 import datetime
 
+import matplotlib
+matplotlib.use("TkAgg") # Use that Backend for rendering, to avoid crashing of figure in PyCharm
+from matplotlib import pyplot as plt # Import pyplot
+plt.close('all') # Close all figure windows
+plt.style.use('seaborn') # using a specific matplotlib style
+import matplotlib.backends.backend_pdf # used to generate multi page pdfs
+
 # FUNCTIONS DEFINITION ################################################################
 def create_master_data_df(data_files_names):
     '''Function returning a Data Frame with metadata about the source files'''
@@ -231,3 +238,42 @@ def generate_buy_and_hold_column(df_list, starting_capital):
         position_qty = int(starting_capital / df['Close'][0])
         df['Buy and Hold Equity'] = position_qty * df['Close']
     return df_list
+
+
+def plot_and_export_to_pdf(df_list, nb_columns_fig, nb_rows_fig, ouput_file_name):
+    '''Method that generates an output pdf from a list of dataframes, with dimension columns x rows per page '''
+    nb_of_axes_per_page = nb_columns_fig * nb_rows_fig  # number of axes hat can be displayed on a single page
+
+    fig_list = []  # list of figures initialization
+
+    for df_index in range(len(
+            df_list)):  # iterate over all the data frames to plot, and create on as many figures as required (with dimensions set above)
+        if df_index % nb_of_axes_per_page == 0:  # if the remainder of df_index divided by number of axes per page is 0, then create a new figure (i.e. previous fig is full)
+            figure_number = 1 + int(df_index / nb_of_axes_per_page)
+            fig, ax_lst = plt.subplots(nb_rows_fig,
+                                       nb_columns_fig)  # create a figure with a 'rows x columns' grid of axes
+            fig.suptitle('figure ' + str(figure_number))
+            fig_list.append(fig)  # add the figure to the list of figures
+            # print('Just created figure ' + str(figure_number))
+        i_fig = int(
+            (np.floor(df_index / nb_columns_fig)) % nb_rows_fig)  # row position of the axes on that given figure
+        j_fig = int((df_index % nb_columns_fig))  # column position of the axes on that given figure
+
+        # print('i_fig, j_fig: ' + str(i_fig) + ', ' + str(j_fig))
+
+        df = df_list[df_index]  # df to plot at that position
+        x = df.index.values  # ndarray with dates (index)
+        y1 = df['Buy and Hold Equity']  # 1st series to plot
+        ax_lst[i_fig, j_fig].set_title(df['Equity'][0])  # set the title of axes in i, j
+        ax_lst[i_fig, j_fig].plot(x, y1)  # plot on axes in position i, j
+        ax_lst[i_fig, j_fig].set_xticklabels([])
+        if df['Equity'][0] != 'SPY':  # plot the strategy axis only if the Equity is different from SPY
+            y2 = df['Strategy Equity']  # 2nd series to plot
+            ax_lst[i_fig, j_fig].plot(x, y2)  # plot on axes in position i, j
+
+    pdf = matplotlib.backends.backend_pdf.PdfPages(ouput_file_name)  # create my multi pages pdf
+    for fig in fig_list:  # iterate over the list of figures
+        pdf.savefig(fig)  # save the figure
+
+    pdf.close()
+    plt.close('all')  # Close all figure windows
