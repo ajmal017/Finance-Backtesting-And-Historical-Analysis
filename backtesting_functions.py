@@ -211,19 +211,6 @@ def plot_and_export_to_pdf(equities_list, df_list, nb_columns_fig, nb_rows_fig, 
 
     fig_list = []  # list of figures initialization
 
-    # Start with a figure summarizing the P&L per equity
-    pnl_per_equity = calculate_pnl_per_equity(df_list)  # creates a list with the P&L of the Strategy per equity
-    first_page_fig = plt.figure() # first figure with the P&L bar plot and first graphs
-    axes_pnl = first_page_fig.add_subplot(1,1,1) # 1 x 1 subplot, 1st subplot
-    axes_pnl.plot(range(10))
-
-    ax_lst_first_graphs = first_page_fig.add_subplot(1, nb_columns_fig, 2) # 1 x nb_columns subplot, 2nd subplot
-
-    # ax_pnl = plt.bar(equities_list, pnl_per_equity)
-    first_page_fig.suptitle('Strategy P&L per Equity')
-    fig_list.append(first_page_fig)  # add the figure to the list of figures
-
-
     for df_index in range(len(df_list)):  # iterate over all the data frames to plot, and create on as many figures as required (with dimensions set above)
         if df_index % nb_of_axes_per_page == 0:  # if the remainder of df_index divided by number of axes per page is 0, then create a new figure (i.e. previous fig is full)
             figure_number = 1 + int(df_index / nb_of_axes_per_page)
@@ -252,3 +239,20 @@ def plot_and_export_to_pdf(equities_list, df_list, nb_columns_fig, nb_rows_fig, 
 
     pdf.close()
     plt.close('all')  # Close all figure windows
+
+def plot_spy_hist(equities_list, df_list):
+    '''plots the SPY changes distribution'''
+    index_of_SPY = equities_list.index('SPY') # Get the index of the SPY Data Frame in the list
+    spy_change = df_list[index_of_SPY]['Change'].dropna() # Get the SPY data frame, only the SPY change column and drop NaN values
+
+    bins =[-5,-4,-3,-2, -1, 0, 1, 2, 3, 4, 5]
+    x = bins[: -1]
+    x_labels = list(map(lambda x: str(x), x))
+    distrib = pd.cut(spy_change, bins=bins).value_counts(sort=False) # cut the series in discrete values, using bins, and count values per bin
+    fig, ax = plt.subplots() # create a fig and axes
+    ax.bar(x=x, height=distrib.values, align='edge') # bar plot the distribution
+    ax.set_xticks(x) # set the x ticks locations
+    #ax.set_xlabel(x_labels) # set the x ticks labels
+
+    return distrib
+

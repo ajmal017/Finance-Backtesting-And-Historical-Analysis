@@ -31,4 +31,5 @@ df_list = generate_buy_and_hold_column(df_list, starting_capital) # Add Buy and 
 
 pd.plotting.register_matplotlib_converters() # register converters (execution was giving me warning and that seems like the fix)
 
-plot_and_export_to_pdf(equities_list, df_list, 3, 3, name_of_output_pdf) # plot the list of dataframes and export to pdf, columns x rows per page, with output pdf file name
+#plot_and_export_to_pdf(equities_list, df_list, 3, 3, name_of_output_pdf) # plot the list of dataframes and export to pdf, columns x rows per page, with output pdf file name
+distrib = plot_spy_hist(equities_list, df_list) # plot the SPY distribution
