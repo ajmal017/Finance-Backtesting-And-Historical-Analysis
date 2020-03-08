@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import datetime
+import yfinance as yf # module to retrieve data on financial instruments (in a 'yahoo finance' style)
 
 import matplotlib
 matplotlib.use("TkAgg") # Use that Backend for rendering, to avoid crashing of figure in PyCharm
@@ -9,76 +9,44 @@ plt.close('all') # Close all figure windows
 plt.style.use('seaborn') # using a specific matplotlib style
 import matplotlib.backends.backend_pdf # used to generate multi page pdfs
 
+
 # FUNCTIONS DEFINITION ################################################################
-def create_master_data_df(data_files_names):
-    '''Function returning a Data Frame with metadata about the source files'''
-    # Create a list of Equity names based on files names
-    # Create a lambda function extracting the string name of equity
-    extract_name = lambda x: x[0:x.find('.')]
-    # Create the list of equities
-    equities_list = list(map(extract_name, data_files_names))
-    # Create the Data Frame with all that metadata
-    meta_data_df = pd.DataFrame({'Equity': equities_list, 'File Name': data_files_names})
-    return meta_data_df
 
-
-def read_data_source_csv(file_name, time_horizon):
-    ''' Read the CSV file  & returns corresponding Data Frame '''
-    df0 = pd.read_csv('data/' + file_name)
-    # Set the date as the index
-    df0 = df0.set_index('Date')
-    # Apply the function on the index to convert the string date into a proper date
-    df0.index = df0.index.map(dstring_to_date)
-    # Add a column named 'Change' giving the percentage of change between today's Close and previous Close
-    df0 = add_change_column(df0)
-    # Take a sub-set of the data (for the time horizon) and make it clear it is a copy
-    df1 = df0.tail(time_horizon).copy()
-    return df1
-
-
-def dstring_to_date(dstr):
-    ''' Method that returns a date object based on the date string  '''
-    # Set the format as it is originally (as a string in the Data Frame read from the CSV)
-    format_of_date_string = '%Y-%m-%d'
-    # Convert into a datetime object and return it
-    return datetime.datetime.strptime(dstr, format_of_date_string)
-
-
-def create_df_list(metadata_df, time_horizon):
+def create_df_list(equities_list, period, interval, prepost):
     '''Method that creates the list of Data Frames, one per Equity'''
     # Initialize an empty list to store the Data Frames
     df_list = []
     # Iterate over the equity list
-    for index, equity_row in metadata_df.iterrows():
+    for equity in equities_list:
         # create Data Frame from reading the csv file
-        df0 = read_data_source_csv(equity_row['File Name'], time_horizon=time_horizon)
+        df0 = yf.download(equity, period= period, interval= interval, prepost= prepost)
         # Insert a column with Equity name in the first position
-        df0.insert(0, 'Equity', equity_row['Equity'])
+        df0.insert(0, 'Equity', equity)
         # Add the Data Frame to the list
         df_list.append(df0)
     return df_list
 
+def add_change_column(df_list):
+    ''' Calculate the Change from one period to the other and returns the list of Data Frames with corresponding column added '''
+    for df in df_list: # Iterate over the data frames
+        # Be n the length of the data frame
+        n = df.__len__()
+        # Iterating over the data frame rows
+        for r in range(1, n):
+            previous_close = df.iloc[r - 1]['Close']
+            close = df.iloc[r]['Close']
+            try:
+                change = ((close - previous_close) / previous_close) * 100
+                df.at[df.index[r], 'Change'] = change
+            except ZeroDivisionError:
+                print('Previous Close = 0, Cannot calculate change. ZeroDivisionError.')
+    return df_list
 
-def add_change_column(df):
-    ''' Calculate the Change from Day Close to Day Close and returns Data Frame with corresponding column added '''
-    # Be n the length of the data frame
-    n = df.__len__()
-    # Iterating over the data frame rows
-    for r in range(1, n):
-        previous_close = df.iloc[r - 1]['Close']
-        close = df.iloc[r]['Close']
-        try:
-            change = ((close - previous_close) / previous_close) * 100
-            df.at[df.index[r], 'Change'] = change
-        except ZeroDivisionError:
-            print('Previous Close = 0, Cannot calculate change. ZeroDivisionError.')
-    return df
 
-
-def add_SPY_change(df_list, metadata_df):
+def add_SPY_change(df_list, equities_list):
     '''Add the SPY Change column to each Data Frame and return the list'''
     # Get the index of the SPY Data Frame in the list
-    index_of_SPY = find_index_of_equity('SPY', metadata_df)
+    index_of_SPY = equities_list.index('SPY')
     # Get the SPY data frame, only the SPY change column
     spy_df = df_list[index_of_SPY]
     # Extract the Chhange column of SPY and rename the column
@@ -87,17 +55,6 @@ def add_SPY_change(df_list, metadata_df):
     for i in range(len(df_list)):
         df_list[i] = pd.merge(df_list[i], spy_df_extract, on='Date')
     return df_list
-
-
-def find_index_of_equity(equity_str, metadata_df):
-    '''Finds the index of an equity based on its name'''
-    # Get a Series of boolean indicating where SPY equity is found
-    where_is_equity_boolean_series = metadata_df['Equity'] == equity_str
-    # Extract the Series indexes where equity was found
-    indexes_where_found = metadata_df[where_is_equity_boolean_series].index
-    # Return the int index where the first occurence was found
-    index_found = indexes_where_found[0]
-    return index_found
 
 
 def generate_relative_strength_column(df_list, spy_large_move):
@@ -240,23 +197,41 @@ def generate_buy_and_hold_column(df_list, starting_capital):
     return df_list
 
 
-def plot_and_export_to_pdf(df_list, nb_columns_fig, nb_rows_fig, ouput_file_name):
+def calculate_pnl_per_equity(df_list):
+    '''Method that calculate the P&L of the strategy per equity and returns a list of P&L'''
+    pnl_per_equity = [] # initialize the list of P&L per equity
+    for df in df_list: # iterates over the dataframes of equities
+        pnl = df['Strategy Equity'].iloc[-1] - df['Buy and Hold Equity'].iloc[-1] # calculating the difference at the last point
+        pnl_per_equity.append(pnl)
+    return pnl_per_equity
+
+def plot_and_export_to_pdf(equities_list, df_list, nb_columns_fig, nb_rows_fig, ouput_file_name):
     '''Method that generates an output pdf from a list of dataframes, with dimension columns x rows per page '''
     nb_of_axes_per_page = nb_columns_fig * nb_rows_fig  # number of axes hat can be displayed on a single page
 
     fig_list = []  # list of figures initialization
 
-    for df_index in range(len(
-            df_list)):  # iterate over all the data frames to plot, and create on as many figures as required (with dimensions set above)
+    # Start with a figure summarizing the P&L per equity
+    pnl_per_equity = calculate_pnl_per_equity(df_list)  # creates a list with the P&L of the Strategy per equity
+    first_page_fig = plt.figure() # first figure with the P&L bar plot and first graphs
+    axes_pnl = first_page_fig.add_subplot(1,1,1) # 1 x 1 subplot, 1st subplot
+    axes_pnl.plot(range(10))
+
+    ax_lst_first_graphs = first_page_fig.add_subplot(1, nb_columns_fig, 2) # 1 x nb_columns subplot, 2nd subplot
+
+    # ax_pnl = plt.bar(equities_list, pnl_per_equity)
+    first_page_fig.suptitle('Strategy P&L per Equity')
+    fig_list.append(first_page_fig)  # add the figure to the list of figures
+
+
+    for df_index in range(len(df_list)):  # iterate over all the data frames to plot, and create on as many figures as required (with dimensions set above)
         if df_index % nb_of_axes_per_page == 0:  # if the remainder of df_index divided by number of axes per page is 0, then create a new figure (i.e. previous fig is full)
             figure_number = 1 + int(df_index / nb_of_axes_per_page)
-            fig, ax_lst = plt.subplots(nb_rows_fig,
-                                       nb_columns_fig)  # create a figure with a 'rows x columns' grid of axes
-            fig.suptitle('figure ' + str(figure_number))
+            fig, ax_lst = plt.subplots(nb_rows_fig, nb_columns_fig)  # create a figure with a 'rows x columns' grid of axes
+            fig.suptitle('page ' + str(figure_number))
             fig_list.append(fig)  # add the figure to the list of figures
             # print('Just created figure ' + str(figure_number))
-        i_fig = int(
-            (np.floor(df_index / nb_columns_fig)) % nb_rows_fig)  # row position of the axes on that given figure
+        i_fig = int((np.floor(df_index / nb_columns_fig)) % nb_rows_fig)  # row position of the axes on that given figure
         j_fig = int((df_index % nb_columns_fig))  # column position of the axes on that given figure
 
         # print('i_fig, j_fig: ' + str(i_fig) + ', ' + str(j_fig))
