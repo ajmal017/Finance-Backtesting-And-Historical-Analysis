@@ -240,19 +240,26 @@ def plot_and_export_to_pdf(equities_list, df_list, nb_columns_fig, nb_rows_fig, 
     pdf.close()
     plt.close('all')  # Close all figure windows
 
-def plot_spy_hist(equities_list, df_list):
-    '''plots the SPY changes distribution'''
-    index_of_SPY = equities_list.index('SPY') # Get the index of the SPY Data Frame in the list
-    spy_change = df_list[index_of_SPY]['Change'].dropna() # Get the SPY data frame, only the SPY change column and drop NaN values
+def plot_spy_change_distribution(period):
+    '''plots the SPY changes distribution for a given period, and returns the corresponding data frame and distribution'''
+    df_spy_lst = create_df_list(['SPY'], period =period, interval='1d', prepost=False) # create a list with only the spy df in it (methods are working on a list)
+    df_spy_lst = add_change_column(df_spy_lst) # add the Change column
+    df_spy = df_spy_lst[0] # extract the unique spy df of the list
 
-    bins =[-5,-4,-3,-2, -1, 0, 1, 2, 3, 4, 5]
-    x = bins[: -1]
-    x_labels = list(map(lambda x: str(x), x))
-    distrib = pd.cut(spy_change, bins=bins).value_counts(sort=False) # cut the series in discrete values, using bins, and count values per bin
+    min = df_spy['Change'].describe().loc['min'] # retrieve the minimum value of changes
+    max = df_spy['Change'].describe().loc['max'] # retrieve the maximum value of changes
+    bins_start = int(np.floor(min)) # starting integer of the bins range (E.g. -9.5 rounded down = floor = -10)
+    bins_end = int(np.ceil(max))  # ending integer of the bins range (E.g. 8.5 rounded up = ceil = 9)
+    bins = np.arange(bins_start,bins_end + 1) # bins (array) covering the entire spectrum of changes from min to max (added +1 to get arange function to include max value)
+    #bins =[-10,-9,-8,-7,-6,-5,-4,-3,-2, -1, 0, 1, 2, 3, 4, 5,6,7,8,9,10]
+    x = bins[: -1] # x axis
+    #x_labels = list(map(lambda x: str(x), x))
+
+    distrib = pd.cut(df_spy['Change'], bins=bins).value_counts(sort=False) # cut the series in discrete values, using bins, and count values per bin
     fig, ax = plt.subplots() # create a fig and axes
     ax.bar(x=x, height=distrib.values, align='edge') # bar plot the distribution
     ax.set_xticks(x) # set the x ticks locations
     #ax.set_xlabel(x_labels) # set the x ticks labels
 
-    return distrib
+    return df_spy, distrib
 

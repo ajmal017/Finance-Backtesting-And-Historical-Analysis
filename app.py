@@ -16,6 +16,7 @@ name_of_output_pdf = 'output.pdf'
 
 # MAIN ##########################################################################
 
+'''
 df_list = create_df_list(equities_list, period, interval, prepost) # Generates the list of data frames for the equities
 
 df_list = add_change_column(df_list) # Adds a change column to each data frame, tracking change from period to period
@@ -24,7 +25,7 @@ df_list = add_SPY_change(df_list, equities_list) # Add the SPY Change
 df_list = generate_relative_strength_column(df_list, spy_large_move) # Generate the Relative strength signal
 df_list = generate_strategy_columns(df_list, starting_capital) # Run the strategy and add corresponding columns
 df_list = generate_buy_and_hold_column(df_list, starting_capital) # Add Buy and Hold Equity
-
+'''
 
 
 # PLOT #########################################################################
@@ -32,4 +33,4 @@ df_list = generate_buy_and_hold_column(df_list, starting_capital) # Add Buy and 
 pd.plotting.register_matplotlib_converters() # register converters (execution was giving me warning and that seems like the fix)
 
 #plot_and_export_to_pdf(equities_list, df_list, 3, 3, name_of_output_pdf) # plot the list of dataframes and export to pdf, columns x rows per page, with output pdf file name
-distrib = plot_spy_hist(equities_list, df_list) # plot the SPY distribution
+df_spy, spy_distribution = plot_spy_change_distribution(period = '10y') # plot the SPY distribution
