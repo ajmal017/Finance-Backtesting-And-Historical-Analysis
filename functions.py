@@ -42,7 +42,6 @@ def add_change_column(df_list):
                 print('Previous Close = 0, Cannot calculate change. ZeroDivisionError.')
     return df_list
 
-
 def add_SPY_change(df_list, equities_list):
     '''Add the SPY Change column to each Data Frame and return the list'''
     # Get the index of the SPY Data Frame in the list
@@ -55,7 +54,6 @@ def add_SPY_change(df_list, equities_list):
     for i in range(len(df_list)):
         df_list[i] = pd.merge(df_list[i], spy_df_extract, on='Date')
     return df_list
-
 
 def generate_relative_strength_column(df_list, spy_large_move):
     ''' Method calculating the relative strength signal and returns the list of Data Frames with corresponding column added '''
@@ -74,7 +72,6 @@ def generate_relative_strength_column(df_list, spy_large_move):
         df['RS Signal'] = rs_signal_list
     return df_list
 
-
 def is_showing_rstrength(spy_change, stock_change, spy_large_move):
     ''' Method returning True if stock showing relative strength versus a SPY large move '''
     # If the SPY is doing a large move down
@@ -82,7 +79,6 @@ def is_showing_rstrength(spy_change, stock_change, spy_large_move):
         return True
     else:
         return False
-
 
 def generate_strategy_columns(df_list, starting_capital):
     ''' Method calculating the strategy columns (action, equity, ...) and returns Data Frame with corresponding columns added '''
@@ -188,14 +184,12 @@ def generate_strategy_columns(df_list, starting_capital):
 
     return df_list
 
-
 def generate_buy_and_hold_column(df_list, starting_capital):
     '''Methods that adds the Buy and Hold Equity column based on starting capital '''
     for df in df_list:
         position_qty = int(starting_capital / df['Close'][0])
         df['Buy and Hold Equity'] = position_qty * df['Close']
     return df_list
-
 
 def calculate_pnl_per_equity(df_list):
     '''Method that calculate the P&L of the strategy per equity and returns a list of P&L'''
@@ -205,7 +199,7 @@ def calculate_pnl_per_equity(df_list):
         pnl_per_equity.append(pnl)
     return pnl_per_equity
 
-def plot_and_export_to_pdf(equities_list, df_list, nb_columns_fig, nb_rows_fig, ouput_file_name):
+def plot_and_export_to_pdf(df_list, nb_columns_fig, nb_rows_fig, ouput_file_name):
     '''Method that generates an output pdf from a list of dataframes, with dimension columns x rows per page '''
     nb_of_axes_per_page = nb_columns_fig * nb_rows_fig  # number of axes hat can be displayed on a single page
 
@@ -240,14 +234,14 @@ def plot_and_export_to_pdf(equities_list, df_list, nb_columns_fig, nb_rows_fig, 
     pdf.close()
     plt.close('all')  # Close all figure windows
 
-def plot_spy_change_distribution(period):
-    '''plots the SPY changes distribution for a given period, and returns the corresponding data frame and distribution'''
-    df_spy_lst = create_df_list(['SPY'], period =period, interval='1d', prepost=False) # create a list with only the spy df in it (methods are working on a list)
-    df_spy_lst = add_change_column(df_spy_lst) # add the Change column
-    df_spy = df_spy_lst[0] # extract the unique spy df of the list
+def plot_equity_change_distribution(equity, period):
+    '''plots the Equity changes distribution for a given period, and returns the corresponding data frame and distribution'''
+    df_equity_lst = create_df_list([equity], period =period, interval='1d', prepost=False) # create a list with only the equity df in it (methods are working on a list)
+    df_equity_lst = add_change_column(df_equity_lst) # add the Change column
+    df_equity = df_equity_lst[0] # extract the unique spy df of the list
 
-    min = df_spy['Change'].describe().loc['min'] # retrieve the minimum value of changes
-    max = df_spy['Change'].describe().loc['max'] # retrieve the maximum value of changes
+    min = df_equity['Change'].describe().loc['min'] # retrieve the minimum value of changes
+    max = df_equity['Change'].describe().loc['max'] # retrieve the maximum value of changes
     bins_start = int(np.floor(min)) # starting integer of the bins range (E.g. -9.5 rounded down = floor = -10)
     bins_end = int(np.ceil(max))  # ending integer of the bins range (E.g. 8.5 rounded up = ceil = 9)
     bins = np.arange(bins_start,bins_end + 1) # bins (array) covering the entire spectrum of changes from min to max (added +1 to get arange function to include max value)
@@ -255,11 +249,23 @@ def plot_spy_change_distribution(period):
     x = bins[: -1] # x axis
     #x_labels = list(map(lambda x: str(x), x))
 
-    distrib = pd.cut(df_spy['Change'], bins=bins).value_counts(sort=False) # cut the series in discrete values, using bins, and count values per bin
+    distrib = pd.cut(df_equity['Change'], bins=bins).value_counts(sort=False) # cut the series in discrete values, using bins, and count values per bin
     fig, ax = plt.subplots() # create a fig and axes
     ax.bar(x=x, height=distrib.values, align='edge') # bar plot the distribution
     ax.set_xticks(x) # set the x ticks locations
     #ax.set_xlabel(x_labels) # set the x ticks labels
 
-    return df_spy, distrib
+    return df_equity, distrib
 
+def run_backtesting(equities_list, period, interval, prepost, spy_large_move, starting_capital):
+    '''Wrap Function that gets the data, run the overall backtesting and returns the output df_list with strategy columns '''
+    df_list = create_df_list(equities_list, period, interval, prepost)  # Generates the list of data frames for the equities
+
+    df_list = add_change_column(df_list)  # Adds a change column to each data frame, tracking change from period to period
+    df_list = add_SPY_change(df_list, equities_list)  # Add the SPY Change
+
+    df_list = generate_relative_strength_column(df_list, spy_large_move)  # Generate the Relative strength signal
+    df_list = generate_strategy_columns(df_list, starting_capital)  # Run the strategy and add corresponding columns
+    df_list = generate_buy_and_hold_column(df_list, starting_capital)  # Add Buy and Hold Equity
+
+    return df_list
