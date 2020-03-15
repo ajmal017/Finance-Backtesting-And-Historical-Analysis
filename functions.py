@@ -3,7 +3,7 @@ import pandas as pd
 import yfinance as yf # module to retrieve data on financial instruments (in a 'yahoo finance' style)
 
 import matplotlib
-matplotlib.use("TkAgg") # Use that Backend for rendering, to avoid crashing of figure in PyCharm
+matplotlib.use("macosx") # Use that Backend for rendering, to avoid crashing of figure in PyCharm
 from matplotlib import pyplot as plt # Import pyplot
 plt.close('all') # Close all figure windows
 plt.style.use('seaborn') # using a specific matplotlib style
@@ -245,17 +245,30 @@ def plot_equity_change_distribution(equity, period):
     bins_start = int(np.floor(min)) # starting integer of the bins range (E.g. -9.5 rounded down = floor = -10)
     bins_end = int(np.ceil(max))  # ending integer of the bins range (E.g. 8.5 rounded up = ceil = 9)
     bins = np.arange(bins_start,bins_end + 1) # bins (array) covering the entire spectrum of changes from min to max (added +1 to get arange function to include max value)
-    #bins =[-10,-9,-8,-7,-6,-5,-4,-3,-2, -1, 0, 1, 2, 3, 4, 5,6,7,8,9,10]
-    x = bins[: -1] # x axis
-    #x_labels = list(map(lambda x: str(x), x))
 
-    distrib = pd.cut(df_equity['Change'], bins=bins).value_counts(sort=False) # cut the series in discrete values, using bins, and count values per bin
-    fig, ax = plt.subplots() # create a fig and axes
-    ax.bar(x=x, height=distrib.values, align='edge') # bar plot the distribution
-    ax.set_xticks(x) # set the x ticks locations
-    #ax.set_xlabel(x_labels) # set the x ticks labels
+    fig, ax = plt.subplots()  # create a fig and axes
+    hist_values, output_bins, patches = ax.hist(x=df_equity['Change'], bins= bins, density=True, cumulative=False, rwidth=0.8)
+    ax.set_xticks(bins) # set the x ticks locations, aligned with bins breakdown
 
-    return df_equity, distrib
+    '''
+    for bin,value in zip(output_bins, hist_values): # iterate over bins and values to annotate the axes with labels
+        label = str(int(value))
+        if True : # only annotate that bin
+            ax.annotate(label,  # this is the text
+                         (bin, value),  # this is the point to label
+                         #textcoords="offset points",  # how to position the text
+                         #xytext=(0, 10),  # distance from text to points (x,y)
+                         ha='center')  # horizontal alignment can be left, right or center
+    '''
+
+    ax.set_title('Probability density of the S&P 500 daily changes (February 18th to March 13th, 2020)')
+    ax.set_xlabel('S&P 500 daily change (%)') # x label
+    ax.set_ylabel('Probability density')  # y label
+
+
+
+    return df_equity, hist_values, output_bins, patches
+
 
 def run_backtesting(equities_list, period, interval, prepost, spy_large_move, starting_capital):
     '''Wrap Function that gets the data, run the overall backtesting and returns the output df_list with strategy columns '''
