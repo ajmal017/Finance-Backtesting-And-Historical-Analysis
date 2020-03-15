@@ -3,11 +3,12 @@ import pandas as pd
 import yfinance as yf # module to retrieve data on financial instruments (in a 'yahoo finance' style)
 
 import matplotlib
-matplotlib.use("macosx") # Use that Backend for rendering, to avoid crashing of figure in PyCharm
+matplotlib.use("macosx") # Use that Backend for rendering, to avoid crashing of figure in PyCharm (TkAgg, macosx)
 from matplotlib import pyplot as plt # Import pyplot
 plt.close('all') # Close all figure windows
 plt.style.use('seaborn') # using a specific matplotlib style
 import matplotlib.backends.backend_pdf # used to generate multi page pdfs
+import matplotlib.ticker as mtick # to format x-axis as %
 
 
 # FUNCTIONS DEFINITION ################################################################
@@ -238,36 +239,44 @@ def plot_equity_change_distribution(equity, period):
     '''plots the Equity changes distribution for a given period, and returns the corresponding data frame and distribution'''
     df_equity_lst = create_df_list([equity], period =period, interval='1d', prepost=False) # create a list with only the equity df in it (methods are working on a list)
     df_equity_lst = add_change_column(df_equity_lst) # add the Change column
-    df_equity = df_equity_lst[0] # extract the unique spy df of the list
+    df_equity = df_equity_lst[0] # extract the unique equity df of the list
 
+    # df_equity.loc['20200218': '20200312']
+
+    '''   
     min = df_equity['Change'].describe().loc['min'] # retrieve the minimum value of changes
     max = df_equity['Change'].describe().loc['max'] # retrieve the maximum value of changes
     bins_start = int(np.floor(min)) # starting integer of the bins range (E.g. -9.5 rounded down = floor = -10)
     bins_end = int(np.ceil(max))  # ending integer of the bins range (E.g. 8.5 rounded up = ceil = 9)
     bins = np.arange(bins_start,bins_end + 1) # bins (array) covering the entire spectrum of changes from min to max (added +1 to get arange function to include max value)
+    '''
+
+    bins = np.arange(-10, 11) # fixed bins (from -10% to +10%)
 
     fig, ax = plt.subplots()  # create a fig and axes
-    hist_values, output_bins, patches = ax.hist(x=df_equity['Change'], bins= bins, density=True, cumulative=False, rwidth=0.8)
+
+    hist_values, bins, patches = ax.hist(x=df_equity['Change'], bins= bins, density=True, cumulative=False, rwidth=0.8, label='over the past 10 years') # plots histogram on the full period
+    hist_values_sub, bins_sub, patches_sub = ax.hist(x=df_equity['Change'].loc['20200218': '20200312'], bins= bins, density=True, cumulative=False, rwidth=0.8, label='over last month (February 18th to March 13th, 2020)') # plots histogram for sub-period
+
+    for bin, patch in zip(bins[:-1], patches): # format the main histogram by iterating over its patches (rectangles)
+        patch.set_alpha(1) # set alpha (transparency)
+        patch.set_color('#545454') # blackkish color
+
+    for bin, patch in zip(bins[:-1], patches_sub): # format the subperiod histogram by iterating over its patches (rectangles)
+        patch.set_alpha(0.6) # set alpha (transparency)
+        patch.set_color('#CD4343') # reddish color
+
     ax.set_xticks(bins) # set the x ticks locations, aligned with bins breakdown
-
-    '''
-    for bin,value in zip(output_bins, hist_values): # iterate over bins and values to annotate the axes with labels
-        label = str(int(value))
-        if True : # only annotate that bin
-            ax.annotate(label,  # this is the text
-                         (bin, value),  # this is the point to label
-                         #textcoords="offset points",  # how to position the text
-                         #xytext=(0, 10),  # distance from text to points (x,y)
-                         ha='center')  # horizontal alignment can be left, right or center
-    '''
-
-    ax.set_title('Probability density of the S&P 500 daily changes (February 18th to March 13th, 2020)')
-    ax.set_xlabel('S&P 500 daily change (%)') # x label
+    ax.set_title('Probability density of the S&P 500 daily changes')
+    ax.set_xlabel('S&P 500 daily change') # x label
     ax.set_ylabel('Probability density')  # y label
 
+    ax.legend(loc='upper left') # makes the legend appear at the upper left
+    ax.set(ylim=(0,0.5)) # set the y limit of y-axis
+    ax.axes.xaxis.set_major_formatter(mtick.PercentFormatter(decimals=0)) # format x-axis with %
 
 
-    return df_equity, hist_values, output_bins, patches
+    return df_equity, hist_values, bins, patches
 
 
 def run_backtesting(equities_list, period, interval, prepost, spy_large_move, starting_capital):

@@ -19,4 +19,4 @@ pd.plotting.register_matplotlib_converters() # register converters (execution wa
 # df_list = run_backtesting(equities_list, period, interval, prepost, spy_large_move, starting_capital) # run the backtesting
 # plot_and_export_to_pdf(df_list, 3, 3, name_of_output_pdf) # plot the list of dataframes and export to pdf, columns, rows per page
 
-df_sp, sp_hist, sp_bins, sp_patches = plot_equity_change_distribution(equity='^GSPC', period='1mo') # plot the S&P distribution
+df_sp, sp_hist, sp_bins, sp_patches = plot_equity_change_distribution(equity='^GSPC', period='10y') # plot the S&P distribution
