@@ -9,6 +9,7 @@ plt.close('all') # Close all figure windows
 plt.style.use('seaborn') # using a specific matplotlib style
 import matplotlib.backends.backend_pdf # used to generate multi page pdfs
 import matplotlib.ticker as mtick # to format x-axis as %
+import datetime
 
 
 # FUNCTIONS DEFINITION ################################################################
@@ -20,7 +21,8 @@ def create_df_list(equities_list, period, interval, prepost):
     # Iterate over the equity list
     for equity in equities_list:
         # create Data Frame from reading the csv file
-        df0 = yf.download(equity, period= period, interval= interval, prepost= prepost)
+        # df0 = yf.download(equity, period= period, interval= interval, prepost= prepost)
+        df0 = yf.download(equity, start="2010-01-01", end='2020-03-13', interval=interval, prepost=prepost)
         # Insert a column with Equity name in the first position
         df0.insert(0, 'Equity', equity)
         # Add the Data Frame to the list
@@ -253,10 +255,29 @@ def plot_equity_change_distribution(equity, period):
 
     bins = np.arange(-10, 11) # fixed bins (from -10% to +10%)
 
-    fig, ax = plt.subplots()  # create a fig and axes
+    months_start = ['20100101', '20130601', '20141101', '20180501']
+    months_end = ['20100201', '20130701', '20141201', '20180601']
 
-    hist_values, bins, patches = ax.hist(x=df_equity['Change'], bins= bins, density=True, cumulative=False, rwidth=0.8, label='over the past 10 years') # plots histogram on the full period
-    hist_values_sub, bins_sub, patches_sub = ax.hist(x=df_equity['Change'].loc['20200218': '20200312'], bins= bins, density=True, cumulative=False, rwidth=0.8, label='over last month (February 18th to March 13th, 2020)') # plots histogram for sub-period
+    nb_columns_fig = 2
+    nb_rows_fig = 2
+    fig, ax_lst = plt.subplots(nb_rows_fig, nb_columns_fig)  # create a fig and axes
+    for (i,j), ax in np.ndenumerate(ax_lst):
+
+        combined_index = j + (i * nb_columns_fig)
+        print(combined_index)
+
+        hist_values, bins, patches = ax.hist(x=df_equity['Change'].loc[months_start[combined_index]: months_end[combined_index]],
+                                                         bins=bins, density=True, cumulative=False, rwidth=0.8,
+                                                         label=months_start[combined_index])
+        ax.set_title(months_start[combined_index])
+        for bin, patch in zip(bins[:-1], patches):  # format the main histogram by iterating over its patches (rectangles)
+            patch.set_alpha(1)  # set alpha (transparency)
+            patch.set_color('#545454')  # blackkish color
+
+'''
+    hist_values, bins, patches = ax.hist(x=df_equity['Change'], bins= bins, density=True, cumulative=False, rwidth=0.8, label='since 2010') # plots histogram on the full period
+    hist_values_sub, bins_sub, patches_sub = ax.hist(x=df_equity['Change'].loc['20200218': '20200312'], 
+                                                     bins= bins, density=True, cumulative=False, rwidth=0.8, label='over last month (February 18th to March 13th, 2020)') # plots histogram for sub-period
 
     for bin, patch in zip(bins[:-1], patches): # format the main histogram by iterating over its patches (rectangles)
         patch.set_alpha(1) # set alpha (transparency)
@@ -267,7 +288,7 @@ def plot_equity_change_distribution(equity, period):
         patch.set_color('#CD4343') # reddish color
 
     ax.set_xticks(bins) # set the x ticks locations, aligned with bins breakdown
-    ax.set_title('Probability density of the S&P 500 daily changes')
+    ax.set_title('S&P 500 daily changes distribution')
     ax.set_xlabel('S&P 500 daily change') # x label
     ax.set_ylabel('Probability density')  # y label
 
@@ -277,7 +298,7 @@ def plot_equity_change_distribution(equity, period):
 
 
     return df_equity, hist_values, bins, patches
-
+'''
 
 def run_backtesting(equities_list, period, interval, prepost, spy_large_move, starting_capital):
     '''Wrap Function that gets the data, run the overall backtesting and returns the output df_list with strategy columns '''
