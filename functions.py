@@ -236,7 +236,7 @@ def plot_and_export_to_pdf(df_list, nb_columns_fig, nb_rows_fig, ouput_file_name
     plt.close('all')  # Close all figure windows
 
 def plot_equity_change_distribution(equity, period):
-    '''plots the Equity changes distribution for a given period, and returns the corresponding data frame and distribution'''
+    '''plots the Equity changes distribution for a given period, and returns the corresponding data frame and historical values distribution'''
     df_equity_lst = create_df_list([equity], period =period, interval='1d', prepost=False) # create a list with only the equity df in it (methods are working on a list)
     df_equity_lst = add_change_column(df_equity_lst) # add the Change column
     df_equity = df_equity_lst[0] # extract the unique equity df of the list
@@ -275,7 +275,6 @@ def plot_equity_change_distribution(equity, period):
 
 
     return df_equity, hist_values, bins, patches
-
 
 def run_backtesting(equities_list, period, interval, prepost, spy_large_move, starting_capital):
     '''Wrap Function that gets the data, run the overall backtesting and returns the output df_list with strategy columns '''
