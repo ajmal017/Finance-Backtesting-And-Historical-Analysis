@@ -241,8 +241,6 @@ def plot_equity_change_distribution(equity, period):
     df_equity_lst = add_change_column(df_equity_lst) # add the Change column
     df_equity = df_equity_lst[0] # extract the unique equity df of the list
 
-    # df_equity.loc['20200218': '20200312']
-
     '''   
     min = df_equity['Change'].describe().loc['min'] # retrieve the minimum value of changes
     max = df_equity['Change'].describe().loc['max'] # retrieve the maximum value of changes
@@ -256,7 +254,7 @@ def plot_equity_change_distribution(equity, period):
     fig, ax = plt.subplots()  # create a fig and axes
 
     hist_values, bins, patches = ax.hist(x=df_equity['Change'], bins= bins, density=True, cumulative=False, rwidth=0.8, label='over the past 10 years') # plots histogram on the full period
-    hist_values_sub, bins_sub, patches_sub = ax.hist(x=df_equity['Change'].loc['20200218': '20200312'], bins= bins, density=True, cumulative=False, rwidth=0.8, label='over last month (February 18th to March 13th, 2020)') # plots histogram for sub-period
+    hist_values_sub, bins_sub, patches_sub = ax.hist(x=df_equity['Change'].loc['20200218': '20200313'], bins= bins, density=True, cumulative=False, rwidth=0.8, label='over last month (February 18th to March 13th, 2020)') # plots histogram for sub-period
 
     for bin, patch in zip(bins[:-1], patches): # format the main histogram by iterating over its patches (rectangles)
         patch.set_alpha(1) # set alpha (transparency)
@@ -267,7 +265,7 @@ def plot_equity_change_distribution(equity, period):
         patch.set_color('#CD4343') # reddish color
 
     ax.set_xticks(bins) # set the x ticks locations, aligned with bins breakdown
-    ax.set_title('Probability density of the S&P 500 daily changes')
+    ax.set_title('Probability density of the S&P 500 daily changes (February 18th to March 13th, 2020)')
     ax.set_xlabel('S&P 500 daily change') # x label
     ax.set_ylabel('Probability density')  # y label
 
