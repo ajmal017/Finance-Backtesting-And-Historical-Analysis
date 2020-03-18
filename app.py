@@ -16,7 +16,16 @@ pd.plotting.register_matplotlib_converters() # register converters (execution wa
 
 # MAIN RUNS ##########################################################################
 
-df_list = run_backtesting(equities_list, period, interval, prepost, spy_large_move, starting_capital) # run the backtesting
-plot_and_export_to_pdf(df_list, 3, 3, name_of_output_pdf) # plot the list of dataframes and export to pdf, columns, rows per page
+ba_df = create_df_list(['BA'], period ='max', interval='1d' , prepost=False) # Get BA
+ba_df = add_change_column_over_month(ba_df) # Add change column (calculated over trailing month)
+ba_df = ba_df[0] # extract the Df
 
-# df_sp, sp_hist, sp_bins, sp_patches = plot_equity_change_distribution(equity='^GSPC', period='10y') # plot the S&P distribution
+ba_df = ba_df[20:].copy()  # remove the first month because chnage column cannot be calculated yet at that point
+
+ba_df['min'] = ba_df.Change[(ba_df.Change.shift(1) > ba_df.Change) & (ba_df.Change.shift(-1) > ba_df.Change)] # find local minimums
+
+ba_df.to_excel('ba_df.xlsx')
+
+
+
+

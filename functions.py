@@ -27,14 +27,14 @@ def create_df_list(equities_list, period, interval, prepost):
         df_list.append(df0)
     return df_list
 
-def add_change_column(df_list):
+def add_change_column_over_month(df_list):
     ''' Calculate the Change from one period to the other and returns the list of Data Frames with corresponding column added '''
     for df in df_list: # Iterate over the data frames
         # Be n the length of the data frame
         n = df.__len__()
         # Iterating over the data frame rows
         for r in range(1, n):
-            previous_close = df.iloc[r - 1]['Close']
+            previous_close = df.iloc[r - 20]['Close']
             close = df.iloc[r]['Close']
             try:
                 change = ((close - previous_close) / previous_close) * 100
