@@ -6,12 +6,12 @@ It provides the structure to implement your specific buy and sell strategy, and 
 
 The period, equities, strategy, can all be configured in the code.
 
-![Backtesting](https://mtlberriawsbucket.s3.us-east-2.amazonaws.com/Backtesting_Example.png)
+![Backtesting](https://mtlberriawsbucket.s3.us-east-2.amazonaws.com/Finance-Backtesting-And-Historical-Analysis/Backtesting_Example.png)
 
 It also provides functions to perform historical data analysis, such as generating the distribution of an equity daily change over a given period of time.
 
 Example:
-![Distribution](https://mtlberriawsbucket.s3.us-east-2.amazonaws.com/SP500_Probability_Density_10y_vs_corona_period.png)
+![Distribution](https://mtlberriawsbucket.s3.us-east-2.amazonaws.com/Finance-Backtesting-And-Historical-Analysis/SP500_Probability_Density_10y_vs_corona_period.png)
 
 
 ## Getting Started
@@ -83,7 +83,7 @@ plot_and_export_to_pdf(df_list, 3, 3, name_of_output_pdf) # plot the list of dat
 ```
 
 An output PDF file will be created with the result of your backtesting:
-![Backtesting](https://mtlberriawsbucket.s3.us-east-2.amazonaws.com/Backtesting_Example.png)
+![Backtesting](https://mtlberriawsbucket.s3.us-east-2.amazonaws.com/Finance-Backtesting-And-Historical-Analysis/Equity_DataFrame_Backtesting.png)
 
 
 
