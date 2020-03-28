@@ -83,7 +83,7 @@ plot_and_export_to_pdf(df_list, 3, 3, name_of_output_pdf) # plot the list of dat
 ```
 
 An output PDF file will be created with the result of your backtesting:
-![Backtesting](https://mtlberriawsbucket.s3.us-east-2.amazonaws.com/Finance-Backtesting-And-Historical-Analysis/Equity_DataFrame_Backtesting.png)
+![Backtesting](https://mtlberriawsbucket.s3.us-east-2.amazonaws.com/Finance-Backtesting-And-Historical-Analysis/Backtesting_Example.png)
 
 
 
