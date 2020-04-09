@@ -1,5 +1,8 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
-
+# Pycharm internal files
+.idea/*
 # MacosX file
 .DS_Store
+# PDF output
+*.pdf
