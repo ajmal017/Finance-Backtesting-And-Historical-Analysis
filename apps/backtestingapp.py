@@ -1,9 +1,9 @@
-from functions import * # importing my custom functions
+from financeclasses.fclasses import *
 
-# GLOBAL PARAMETERS ####################################################################
 
-equities_list = ['SPY', 'AMD', 'SNAP', 'INTC', 'MSFT', 'TSLA', 'AAPL', 'MU', 'NVDA'] # List of equities that are going to be used for backtesting
-period = '1y' # valid periods: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
+
+equities_list = ['SPY', 'AMD'] # List of equities that are going to be used for backtesting
+period = '1mo' # valid periods: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
 interval = '1d' #valid intervals: 1m,2m,5m,15m,30m,60m,90m,1h,1d,5d,1wk,1mo,3mo
 prepost = False # download pre/post regular market hours data
 

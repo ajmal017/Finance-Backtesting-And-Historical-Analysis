@@ -5,4 +5,4 @@ __pycache__/
 # MacosX file
 .DS_Store
 # PDF output
-*.pdf
+output/
