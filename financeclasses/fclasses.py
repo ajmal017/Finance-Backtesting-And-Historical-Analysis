@@ -14,7 +14,7 @@ import matplotlib.ticker as mtick # to format x-axis as %
 # FUNCTIONS DEFINITION ################################################################
 
 def create_df_list(equities_list, period, interval, prepost):
-    '''Method that creates the list of Data Frames, one per Equity'''
+    """Method that creates the list of Data Frames, one per Equity"""
     # Initialize an empty list to store the Data Frames
     df_list = []
     # Iterate over the equity list
@@ -28,7 +28,7 @@ def create_df_list(equities_list, period, interval, prepost):
     return df_list
 
 def add_change_column(df_list):
-    ''' Calculate the Change from one period to the other and returns the list of Data Frames with corresponding column added '''
+    """ Calculate the Change from one period to the other and returns the list of Data Frames with corresponding column added """
     for df in df_list: # Iterate over the data frames
         # Be n the length of the data frame
         n = df.__len__()
@@ -44,7 +44,7 @@ def add_change_column(df_list):
     return df_list
 
 def add_SPY_change(df_list, equities_list):
-    '''Add the SPY Change column to each Data Frame and return the list'''
+    """Add the SPY Change column to each Data Frame and return the list"""
     # Get the index of the SPY Data Frame in the list
     index_of_SPY = equities_list.index('SPY')
     # Get the SPY data frame, only the SPY change column
@@ -56,34 +56,18 @@ def add_SPY_change(df_list, equities_list):
         df_list[i] = pd.merge(df_list[i], spy_df_extract, on='Date')
     return df_list
 
+
 def generate_relative_strength_column(df_list, spy_large_move):
-    ''' Method calculating the relative strength signal and returns the list of Data Frames with corresponding column added '''
+    """ Method calculating the relative strength signal and returns the list of Data Frames with
+    corresponding column added """
     for df in df_list:
         df['RS Signal'] = (df['SPY Change'] < spy_large_move) & (df['Change'] > 0)
-        # Initiate a list to store the signals
-        rs_signal_list = []
-        # Iterate over the rows to calculate if signal or not
-        for i, j in df.iterrows():
-            spy_change = j['SPY Change']
-            stock_change = j['Change']
-            if is_showing_rstrength(spy_change, stock_change, spy_large_move) == True:
-                rs_signal_list.append(True)
-            else:
-                rs_signal_list.append(False)
-        # Add the column to the dataset
-        df['RS Signal'] = rs_signal_list
     return df_list
 
-def is_showing_rstrength(spy_change, stock_change, spy_large_move):
-    ''' Method returning True if stock showing relative strength versus a SPY large move '''
-    # If the SPY is doing a large move down
-    if spy_change <= spy_large_move and stock_change >= 0:
-        return True
-    else:
-        return False
 
 def generate_strategy_columns(df_list, starting_capital):
-    ''' Method calculating the strategy columns (action, equity, ...) and returns Data Frame with corresponding columns added '''
+    """ Method calculating the strategy columns (action, equity, ...) and returns Data Frame
+    with corresponding columns added """
     for df in df_list:
         # Buying when getting the signal, selling at the profit target
 
@@ -187,14 +171,16 @@ def generate_strategy_columns(df_list, starting_capital):
     return df_list
 
 def generate_buy_and_hold_column(df_list, starting_capital):
-    '''Methods that adds the Buy and Hold Equity column based on starting capital '''
+    """Methods that adds the Buy and Hold Equity column based on starting capital """
     for df in df_list:
         position_qty = int(starting_capital / df['Close'][0])
         df['Buy and Hold Equity'] = position_qty * df['Close']
+        df['SMA'] = df['Close'].rolling(window=10).mean() * position_qty
+        df['SMA'].fillna(method='backfill', inplace=True)
     return df_list
 
 def calculate_pnl_per_equity(df_list):
-    '''Method that calculate the P&L of the strategy per equity and returns a list of P&L'''
+    """Method that calculate the P&L of the strategy per equity and returns a list of P&L"""
     pnl_per_equity = [] # initialize the list of P&L per equity
     for df in df_list: # iterates over the dataframes of equities
         pnl = df['Strategy Equity'].iloc[-1] - df['Buy and Hold Equity'].iloc[-1] # calculating the difference at the last point
@@ -202,7 +188,7 @@ def calculate_pnl_per_equity(df_list):
     return pnl_per_equity
 
 def plot_and_export_to_pdf(df_list, nb_columns_fig, nb_rows_fig, ouput_file_name):
-    '''Method that generates an output pdf from a list of dataframes, with dimension columns x rows per page '''
+    """Method that generates an output pdf from a list of dataframes, with dimension columns x rows per page """
     nb_of_axes_per_page = nb_columns_fig * nb_rows_fig  # number of axes hat can be displayed on a single page
 
     fig_list = []  # list of figures initialization
@@ -220,14 +206,16 @@ def plot_and_export_to_pdf(df_list, nb_columns_fig, nb_rows_fig, ouput_file_name
         # print('i_fig, j_fig: ' + str(i_fig) + ', ' + str(j_fig))
 
         df = df_list[df_index]  # df to plot at that position
-        x = df.index.values  # ndarray with dates (index)
+        x = df.index # ndarray with dates (index)
         y1 = df['Buy and Hold Equity']  # 1st series to plot
         ax_lst[i_fig, j_fig].set_title(df['Equity'][0])  # set the title of axes in i, j
         ax_lst[i_fig, j_fig].plot(x, y1)  # plot on axes in position i, j
         ax_lst[i_fig, j_fig].set_xticklabels([])
         if df['Equity'][0] != 'SPY':  # plot the strategy axis only if the Equity is different from SPY
             y2 = df['Strategy Equity']  # 2nd series to plot
+            y3 = df['SMA'] # Plotting the SMA
             ax_lst[i_fig, j_fig].plot(x, y2)  # plot on axes in position i, j
+            ax_lst[i_fig, j_fig].plot(x, y3)  # plot on axes in position i, j
 
     pdf = matplotlib.backends.backend_pdf.PdfPages(ouput_file_name)  # create my multi pages pdf
     for fig in fig_list:  # iterate over the list of figures
@@ -237,18 +225,18 @@ def plot_and_export_to_pdf(df_list, nb_columns_fig, nb_rows_fig, ouput_file_name
     plt.close('all')  # Close all figure windows
 
 def plot_equity_change_distribution(equity, period):
-    '''plots the Equity changes distribution for a given period, and returns the corresponding data frame and historical values distribution'''
+    """plots the Equity changes distribution for a given period, and returns the corresponding data frame and historical values distribution"""
     df_equity_lst = create_df_list([equity], period =period, interval='1d', prepost=False) # create a list with only the equity df in it (methods are working on a list)
     df_equity_lst = add_change_column(df_equity_lst) # add the Change column
     df_equity = df_equity_lst[0] # extract the unique equity df of the list
 
-    '''   
+    """   
     min = df_equity['Change'].describe().loc['min'] # retrieve the minimum value of changes
     max = df_equity['Change'].describe().loc['max'] # retrieve the maximum value of changes
     bins_start = int(np.floor(min)) # starting integer of the bins range (E.g. -9.5 rounded down = floor = -10)
     bins_end = int(np.ceil(max))  # ending integer of the bins range (E.g. 8.5 rounded up = ceil = 9)
     bins = np.arange(bins_start,bins_end + 1) # bins (array) covering the entire spectrum of changes from min to max (added +1 to get arange function to include max value)
-    '''
+    """
 
     bins = np.arange(-10, 11) # fixed bins (from -10% to +10%)
 
@@ -279,8 +267,8 @@ def plot_equity_change_distribution(equity, period):
 
 
 def run_backtesting(equities_list, period, interval, spy_large_move, starting_capital, prepost=False):
-    '''Wrap Function that gets the data, run the overall backtesting and returns the output df_list with
-    strategy columns '''
+    """Wrap Function that gets the data, run the overall backtesting and returns the output df_list with
+    strategy columns """
     # Generates the list of data frames for the equities
     df_list = create_df_list(equities_list, period, interval, prepost)
     # Adds a change column to each data frame, tracking change from period to period
