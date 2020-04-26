@@ -59,6 +59,7 @@ def add_SPY_change(df_list, equities_list):
 def generate_relative_strength_column(df_list, spy_large_move):
     ''' Method calculating the relative strength signal and returns the list of Data Frames with corresponding column added '''
     for df in df_list:
+        df['RS Signal'] = (df['SPY Change'] < spy_large_move) & (df['Change'] > 0)
         # Initiate a list to store the signals
         rs_signal_list = []
         # Iterate over the rows to calculate if signal or not
@@ -276,11 +277,14 @@ def plot_equity_change_distribution(equity, period):
 
     return df_equity, hist_values, bins, patches
 
-def run_backtesting(equities_list, period, interval, prepost, spy_large_move, starting_capital):
-    '''Wrap Function that gets the data, run the overall backtesting and returns the output df_list with strategy columns '''
-    df_list = create_df_list(equities_list, period, interval, prepost)  # Generates the list of data frames for the equities
 
-    df_list = add_change_column(df_list)  # Adds a change column to each data frame, tracking change from period to period
+def run_backtesting(equities_list, period, interval, spy_large_move, starting_capital, prepost=False):
+    '''Wrap Function that gets the data, run the overall backtesting and returns the output df_list with
+    strategy columns '''
+    # Generates the list of data frames for the equities
+    df_list = create_df_list(equities_list, period, interval, prepost)
+    # Adds a change column to each data frame, tracking change from period to period
+    df_list = add_change_column(df_list)
     df_list = add_SPY_change(df_list, equities_list)  # Add the SPY Change
 
     df_list = generate_relative_strength_column(df_list, spy_large_move)  # Generate the Relative strength signal
