@@ -187,21 +187,40 @@ def calculate_pnl_per_equity(df_list):
         pnl_per_equity.append(pnl)
     return pnl_per_equity
 
-def plot_and_export_to_pdf(df_list, nb_columns_fig, nb_rows_fig, ouput_file_name):
+def plot_and_export_to_pdf(df_list, nb_graphs_col, nb_graphs_row, output_file_name):
     """Method that generates an output pdf from a list of dataframes, with dimension columns x rows per page """
-    nb_of_axes_per_page = nb_columns_fig * nb_rows_fig  # number of axes hat can be displayed on a single page
-
     fig_list = []  # list of figures initialization
+    fig = plt.figure(constrained_layout=True)
+    fig_list.append(fig)
+    nb_col = nb_graphs_col * 2
+    nb_row = nb_graphs_row
+    widths = [6, 1] * nb_graphs_col
+    heights = [1] * nb_graphs_row
+    spec = fig.add_gridspec(ncols=nb_col, nrows=nb_row, width_ratios=widths, height_ratios=heights, wspace=0.1)
 
+    for row in range(nb_row):
+        for col in range(nb_col):
+            ax = fig.add_subplot(spec[row, col])
+
+    pdf = matplotlib.backends.backend_pdf.PdfPages(output_file_name)  # create my multi pages pdf
+    for fig in fig_list:  # iterate over the list of figures
+        pdf.savefig(fig)  # save the figure
+
+    pdf.close()
+    plt.close('all')  # Close all figure windows
+
+'''
+    nb_of_axes_per_page = nb_graphs_col * nb_graphs_row  # number of axes hat can be displayed on a single page
+    
     for df_index in range(len(df_list)):  # iterate over all the data frames to plot, and create on as many figures as required (with dimensions set above)
         if df_index % nb_of_axes_per_page == 0:  # if the remainder of df_index divided by number of axes per page is 0, then create a new figure (i.e. previous fig is full)
             figure_number = 1 + int(df_index / nb_of_axes_per_page)
-            fig, ax_lst = plt.subplots(nb_rows_fig, nb_columns_fig)  # create a figure with a 'rows x columns' grid of axes
+            fig, ax_lst = plt.subplots(nb_graphs_row, nb_graphs_col)  # create a figure with a 'rows x columns' grid of axes
             fig.suptitle('page ' + str(figure_number))
             fig_list.append(fig)  # add the figure to the list of figures
             # print('Just created figure ' + str(figure_number))
-        i_fig = int((np.floor(df_index / nb_columns_fig)) % nb_rows_fig)  # row position of the axes on that given figure
-        j_fig = int((df_index % nb_columns_fig))  # column position of the axes on that given figure
+        i_fig = int((np.floor(df_index / nb_graphs_col)) % nb_graphs_row)  # row position of the axes on that given figure
+        j_fig = int((df_index % nb_graphs_col))  # column position of the axes on that given figure
 
         # print('i_fig, j_fig: ' + str(i_fig) + ', ' + str(j_fig))
 
@@ -216,13 +235,7 @@ def plot_and_export_to_pdf(df_list, nb_columns_fig, nb_rows_fig, ouput_file_name
             y3 = df['SMA'] # Plotting the SMA
             ax_lst[i_fig, j_fig].plot(x, y2)  # plot on axes in position i, j
             ax_lst[i_fig, j_fig].plot(x, y3)  # plot on axes in position i, j
-
-    pdf = matplotlib.backends.backend_pdf.PdfPages(ouput_file_name)  # create my multi pages pdf
-    for fig in fig_list:  # iterate over the list of figures
-        pdf.savefig(fig)  # save the figure
-
-    pdf.close()
-    plt.close('all')  # Close all figure windows
+'''
 
 def plot_equity_change_distribution(equity, period):
     """plots the Equity changes distribution for a given period, and returns the corresponding data frame and historical values distribution"""
