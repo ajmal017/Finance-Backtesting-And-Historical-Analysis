@@ -1,31 +1,56 @@
 import numpy as np
 import pandas as pd
+import re
+import os
 import yfinance as yf # module to retrieve data on financial instruments (in a 'yahoo finance' style)
-
+import matplotlib.backends.backend_pdf # used to generate multi page pdfs
+import matplotlib.ticker as mtick # to format x-axis as %
+from datetime import date
 import matplotlib
-matplotlib.use("macosx") # Use that Backend for rendering, to avoid crashing of figure in PyCharm (TkAgg, macosx)
+# matplotlib.use("macosx") # Use that Backend for rendering, to avoid crashing of figure in PyCharm (TkAgg, macosx)
 from matplotlib import pyplot as plt # Import pyplot
 plt.close('all') # Close all figure windows
 plt.style.use('seaborn') # using a specific matplotlib style
-import matplotlib.backends.backend_pdf # used to generate multi page pdfs
-import matplotlib.ticker as mtick # to format x-axis as %
 
 
-# FUNCTIONS DEFINITION ################################################################
-
-def create_df_list(equities_list, period, interval, prepost):
-    """Method that creates the list of Data Frames, one per Equity"""
+def create_df_list(equities_list, method, period=None, interval=None):
+    """Method that creates the list of Data Frames, one per Equity
+    If method is 'csv', then go read csv in data folder,
+    Else if method is 'yf' then go get data straight from yfinance API"""
     # Initialize an empty list to store the Data Frames
     df_list = []
+    if method == 'csv':
+        data_files = os.listdir('../data/')
     # Iterate over the equity list
     for equity in equities_list:
-        # create Data Frame from reading the csv file
-        df0 = yf.download(equity, period= period, interval= interval, prepost= prepost)
+        if method == 'csv':
+            # get the file name for that equity
+            for file in data_files:
+                match = re.search(equity, file)
+                if match:
+                    file_name = file
+                    break
+            # read the csv for that file name
+            try:
+                df0 = pd.read_csv('../data/' + file_name)
+            except:
+                print(f'Could not import csv for equity {equity}: {file_name}')
+            else:
+                print(f'Successfully read csv for {equity}: {file_name}')
+        elif method == 'yf':
+            df0 = yf.download(equity, period=period, interval=interval, prepost=False)
+        else:
+            print('Please use csv, or yf as method to create the df list')
+            raise ValueError
         # Insert a column with Equity name in the first position
-        df0.insert(0, 'Equity', equity)
-        # Add the Data Frame to the list
-        df_list.append(df0)
+        try:
+            df0.insert(0, 'Equity', equity)
+            # Add the Data Frame to the list
+            df_list.append(df0)
+        except:
+            print(f'Could not add {equity} dataframe to the df list')
     return df_list
+
 
 def add_change_column(df_list):
     """ Calculate the Change from one period to the other and returns the list of Data Frames with corresponding column added """
@@ -293,3 +318,13 @@ def run_backtesting(equities_list, period, interval, spy_large_move, starting_ca
     df_list = generate_buy_and_hold_column(df_list, starting_capital)  # Add Buy and Hold Equity
 
     return df_list
+
+
+def get_csv_files_for_equities(equity_list, period, interval):
+    """generates csv's for a list of equities and dump it in the data folder"""
+    today_str = date.today().strftime('%Y-%m-%d')
+    for equity in equity_list:
+        file_name = equity + '_' + period + '-' + interval + '_' + today_str + '.csv'
+        df = yf.download(equity, period=period, interval=interval, prepost=False)
+        df.to_csv(path_or_buf='../data/' + file_name)
+
