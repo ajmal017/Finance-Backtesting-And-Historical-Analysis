@@ -13,7 +13,7 @@ plt.close('all') # Close all figure windows
 plt.style.use('seaborn') # using a specific matplotlib style
 
 
-def create_df_list(equities_list, method, period=None, interval=None):
+def load_df_list(equities_list, method, period=None, interval=None):
     """Method that creates the list of Data Frames, one per Equity
     If method is 'csv', then go read csv in data folder,
     Else if method is 'yf' then go get data straight from yfinance API"""
@@ -52,30 +52,24 @@ def create_df_list(equities_list, method, period=None, interval=None):
     return df_list
 
 
-def add_change_column(df_list):
-    """ Calculate the Change from one period to the other and returns the list of Data Frames with corresponding column added """
+def prepare_dataframes(df_list, equities_list):
+    """Prepare dataframes (add Change column, add SMA, ...)
+    :return the list of dataframes (prepared)"""
+    # Get the SPY to column to add it to all dataframes
+
     for df in df_list: # Iterate over the data frames
-        # Be n the length of the data frame
-        n = df.__len__()
-        # Iterating over the data frame rows
-        for r in range(1, n):
-            previous_close = df.iloc[r - 1]['Close']
-            close = df.iloc[r]['Close']
-            try:
-                change = ((close - previous_close) / previous_close) * 100
-                df.at[df.index[r], 'Change'] = change
-            except ZeroDivisionError:
-                print('Previous Close = 0, Cannot calculate change. ZeroDivisionError.')
+        # Calculate Change
+        df['Change'] = ((df['Close'] - df['Close'].shift(1)) / df['Close']) * 100
+        # Get the index of the SPY Data Frame in the list
+        index_of_SPY = equities_list.index('SPY')
+        # Get the SPY data frame, only the SPY change column
+        spy_df = df_list[index_of_SPY]
+        # Extract the Chhange column of SPY and rename the column
+        spy_df_extract = spy_df['Change'].rename('SPY Change')
     return df_list
 
 def add_SPY_change(df_list, equities_list):
     """Add the SPY Change column to each Data Frame and return the list"""
-    # Get the index of the SPY Data Frame in the list
-    index_of_SPY = equities_list.index('SPY')
-    # Get the SPY data frame, only the SPY change column
-    spy_df = df_list[index_of_SPY]
-    # Extract the Chhange column of SPY and rename the column
-    spy_df_extract = spy_df['Change'].rename('SPY Change')
     # Iterate over all the dataframes and Merge the SPY columns into each of the Equity Data Frames
     for i in range(len(df_list)):
         df_list[i] = pd.merge(df_list[i], spy_df_extract, on='Date')
@@ -264,8 +258,8 @@ def plot_and_export_to_pdf(df_list, nb_graphs_col, nb_graphs_row, output_file_na
 
 def plot_equity_change_distribution(equity, period):
     """plots the Equity changes distribution for a given period, and returns the corresponding data frame and historical values distribution"""
-    df_equity_lst = create_df_list([equity], period =period, interval='1d', prepost=False) # create a list with only the equity df in it (methods are working on a list)
-    df_equity_lst = add_change_column(df_equity_lst) # add the Change column
+    df_equity_lst = load_df_list([equity], period =period, interval='1d', prepost=False) # create a list with only the equity df in it (methods are working on a list)
+    df_equity_lst = prepare_dataframes(df_equity_lst) # add the Change column
     df_equity = df_equity_lst[0] # extract the unique equity df of the list
 
     """   
@@ -308,14 +302,14 @@ def run_backtesting(equities_list, period, interval, spy_large_move, starting_ca
     """Wrap Function that gets the data, run the overall backtesting and returns the output df_list with
     strategy columns """
     # Generates the list of data frames for the equities
-    df_list = create_df_list(equities_list, period, interval, prepost)
+    df_list = load_df_list(equities_list, 'csv')
     # Adds a change column to each data frame, tracking change from period to period
-    df_list = add_change_column(df_list)
-    df_list = add_SPY_change(df_list, equities_list)  # Add the SPY Change
+    df_list = prepare_dataframes(df_list, equities_list)
+    # df_list = add_SPY_change(df_list, equities_list)  # Add the SPY Change
 
-    df_list = generate_relative_strength_column(df_list, spy_large_move)  # Generate the Relative strength signal
-    df_list = generate_strategy_columns(df_list, starting_capital)  # Run the strategy and add corresponding columns
-    df_list = generate_buy_and_hold_column(df_list, starting_capital)  # Add Buy and Hold Equity
+    # df_list = generate_relative_strength_column(df_list, spy_large_move)  # Generate the Relative strength signal
+    # df_list = generate_strategy_columns(df_list, starting_capital)  # Run the strategy and add corresponding columns
+    # df_list = generate_buy_and_hold_column(df_list, starting_capital)  # Add Buy and Hold Equity
 
     return df_list
 
