@@ -45,6 +45,9 @@ def load_df_list(equities_list, method, period=None, interval=None):
         # Insert a column with Equity name in the first position
         try:
             df0.insert(0, 'Equity', equity)
+            df0['Date'] = df0['Date'].apply(lambda x: pd.Timestamp(x))
+            df0.set_index(keys='Date', inplace=True)
+            df0.sort_index(inplace=True)
             # Add the Data Frame to the list
             df_list.append(df0)
         except:
@@ -52,35 +55,25 @@ def load_df_list(equities_list, method, period=None, interval=None):
     return df_list
 
 
-def prepare_dataframes(df_list, equities_list):
+def prepare_dataframes(df_list, equities_list, starting_capital):
     """Prepare dataframes (add Change column, add SMA, ...)
     :return the list of dataframes (prepared)"""
     # Get the SPY to column to add it to all dataframes
-
-    for df in df_list: # Iterate over the data frames
+    index_of_SPY = equities_list.index('SPY')
+    spy_df = df_list[index_of_SPY]
+    spy_df['Change'] = ((spy_df['Close'] - spy_df['Close'].shift(1)) / spy_df['Close']) * 100
+    spy_df_extract = spy_df['Change'].rename('SPY Change')
+    for i, df in enumerate(df_list): # Iterate over the data frames
         # Calculate Change
         df['Change'] = ((df['Close'] - df['Close'].shift(1)) / df['Close']) * 100
-        # Get the index of the SPY Data Frame in the list
-        index_of_SPY = equities_list.index('SPY')
-        # Get the SPY data frame, only the SPY change column
-        spy_df = df_list[index_of_SPY]
-        # Extract the Chhange column of SPY and rename the column
-        spy_df_extract = spy_df['Change'].rename('SPY Change')
-    return df_list
-
-def add_SPY_change(df_list, equities_list):
-    """Add the SPY Change column to each Data Frame and return the list"""
-    # Iterate over all the dataframes and Merge the SPY columns into each of the Equity Data Frames
-    for i in range(len(df_list)):
-        df_list[i] = pd.merge(df_list[i], spy_df_extract, on='Date')
-    return df_list
-
-
-def generate_relative_strength_column(df_list, spy_large_move):
-    """ Method calculating the relative strength signal and returns the list of Data Frames with
-    corresponding column added """
-    for df in df_list:
-        df['RS Signal'] = (df['SPY Change'] < spy_large_move) & (df['Change'] > 0)
+        # Add the reference Buy and Hold strategy
+        position_qty = int(starting_capital / df['Close'][0])
+        df['Buy and Hold Equity'] = position_qty * df['Close']
+        # Add the SMA to the equity
+        df['SMA'] = df['Close'].rolling(window=10).mean() * position_qty
+        df['SMA'].fillna(method='backfill', inplace=True)
+        # Add the SPY column
+        df_list[i] = pd.merge(df, spy_df_extract, left_index=True, right_index=True)
     return df_list
 
 
@@ -94,12 +87,10 @@ def generate_strategy_columns(df_list, starting_capital):
         in_out_status = 'OUT'
         position_qty = 0
         entry_point_position_value = 0
-        position_value = 0
         # Adjusting the starting capital in order to compare apples to apples between "Buy and Hold" and "Strategy"
         buy_and_hold_initial_qty = int(starting_capital / df['Close'][0])
         adjusted_starting_capital = buy_and_hold_initial_qty * df['Close'][0]
         cash_at_hands = adjusted_starting_capital
-        total_equity = position_value + cash_at_hands
 
         # Initialize strategy columns
         buy_sell_actions_list = []
@@ -189,14 +180,6 @@ def generate_strategy_columns(df_list, starting_capital):
 
     return df_list
 
-def generate_buy_and_hold_column(df_list, starting_capital):
-    """Methods that adds the Buy and Hold Equity column based on starting capital """
-    for df in df_list:
-        position_qty = int(starting_capital / df['Close'][0])
-        df['Buy and Hold Equity'] = position_qty * df['Close']
-        df['SMA'] = df['Close'].rolling(window=10).mean() * position_qty
-        df['SMA'].fillna(method='backfill', inplace=True)
-    return df_list
 
 def calculate_pnl_per_equity(df_list):
     """Method that calculate the P&L of the strategy per equity and returns a list of P&L"""
@@ -205,6 +188,7 @@ def calculate_pnl_per_equity(df_list):
         pnl = df['Strategy Equity'].iloc[-1] - df['Buy and Hold Equity'].iloc[-1] # calculating the difference at the last point
         pnl_per_equity.append(pnl)
     return pnl_per_equity
+
 
 def plot_and_export_to_pdf(df_list, nb_graphs_col, nb_graphs_row, output_file_name):
     """Method that generates an output pdf from a list of dataframes, with dimension columns x rows per page """
@@ -256,6 +240,33 @@ def plot_and_export_to_pdf(df_list, nb_graphs_col, nb_graphs_row, output_file_na
             ax_lst[i_fig, j_fig].plot(x, y3)  # plot on axes in position i, j
 '''
 
+
+def run_backtesting(equities_list, period, interval, spy_large_move, starting_capital, prepost=False):
+    """Wrap Function that gets the data, run the overall backtesting and returns the output df_list with
+    strategy columns """
+    df_list = load_df_list(equities_list, 'csv')
+    df_list = prepare_dataframes(df_list, equities_list, starting_capital)
+    df_list = generate_strategy_columns(df_list, starting_capital)
+    return df_list
+
+
+def get_csv_files_for_equities(equity_list, period, interval):
+    """generates csv's for a list of equities and dump it in the data folder"""
+    today_str = date.today().strftime('%Y-%m-%d')
+    for equity in equity_list:
+        file_name = equity + '_' + period + '-' + interval + '_' + today_str + '.csv'
+        df = yf.download(equity, period=period, interval=interval, prepost=False)
+        df.to_csv(path_or_buf='../data/' + file_name)
+
+
+
+
+
+
+
+
+
+
 def plot_equity_change_distribution(equity, period):
     """plots the Equity changes distribution for a given period, and returns the corresponding data frame and historical values distribution"""
     df_equity_lst = load_df_list([equity], period =period, interval='1d', prepost=False) # create a list with only the equity df in it (methods are working on a list)
@@ -296,29 +307,3 @@ def plot_equity_change_distribution(equity, period):
 
 
     return df_equity, hist_values, bins, patches
-
-
-def run_backtesting(equities_list, period, interval, spy_large_move, starting_capital, prepost=False):
-    """Wrap Function that gets the data, run the overall backtesting and returns the output df_list with
-    strategy columns """
-    # Generates the list of data frames for the equities
-    df_list = load_df_list(equities_list, 'csv')
-    # Adds a change column to each data frame, tracking change from period to period
-    df_list = prepare_dataframes(df_list, equities_list)
-    # df_list = add_SPY_change(df_list, equities_list)  # Add the SPY Change
-
-    # df_list = generate_relative_strength_column(df_list, spy_large_move)  # Generate the Relative strength signal
-    # df_list = generate_strategy_columns(df_list, starting_capital)  # Run the strategy and add corresponding columns
-    # df_list = generate_buy_and_hold_column(df_list, starting_capital)  # Add Buy and Hold Equity
-
-    return df_list
-
-
-def get_csv_files_for_equities(equity_list, period, interval):
-    """generates csv's for a list of equities and dump it in the data folder"""
-    today_str = date.today().strftime('%Y-%m-%d')
-    for equity in equity_list:
-        file_name = equity + '_' + period + '-' + interval + '_' + today_str + '.csv'
-        df = yf.download(equity, period=period, interval=interval, prepost=False)
-        df.to_csv(path_or_buf='../data/' + file_name)
-
