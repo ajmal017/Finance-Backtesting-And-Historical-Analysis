@@ -67,125 +67,75 @@ def prepare_dataframes(df_list, equities_list, starting_capital):
         # Calculate Change
         df['Change'] = ((df['Close'] - df['Close'].shift(1)) / df['Close']) * 100
         # Add the reference Buy and Hold strategy
-        position_qty = int(starting_capital / df['Close'][0])
-        df['Buy and Hold Equity'] = position_qty * df['Close']
+        df['Buy and Hold Qty'] = int(starting_capital / df['Close'][0])
+        df['Buy and Hold Equity'] = df['Buy and Hold Qty'] * df['Close']
         # Add the SMA to the equity
-        df['SMA'] = df['Close'].rolling(window=10).mean() * position_qty
+        df['SMA'] = df['Close'].rolling(window=10).mean() * df['Buy and Hold Qty']
         df['SMA'].fillna(method='backfill', inplace=True)
         # Add the SPY column
         df_list[i] = pd.merge(df, spy_df_extract, left_index=True, right_index=True)
     return df_list
 
 
-def generate_relative_strength_column(df_list, spy_large_move):
-    """ Method calculating the relative strength signal and returns the list of Data Frames with
-    corresponding column added """
-    for df in df_list:
-        df['RS Signal'] = (df['SPY Change'] < spy_large_move) & (df['Change'] > 0)
-    return df_list
+def generate_buy_signal(df, spy_large_move):
+    """ Method generating a buy signal column in a given dataframe"""
+    # Buy signal when SPY id having a large negative move and equity is still up
+    df['Buy Signal'] = (df['SPY Change'] < spy_large_move) & (df['Change'] > 0)
+    return df
 
 
-def generate_strategy_columns(df_list, starting_capital):
+def generate_strategy_columns(df_list, spy_large_move):
     """ Method calculating the strategy columns (action, equity, ...) and returns Data Frame
     with corresponding columns added """
     for df in df_list:
-        # Buying when getting the signal, selling at the profit target
-
-        # Init my tracking variables
-        in_out_status = 'OUT'
-        position_qty = 0
-        entry_point_position_value = 0
-        # Adjusting the starting capital in order to compare apples to apples between "Buy and Hold" and "Strategy"
-        buy_and_hold_initial_qty = int(starting_capital / df['Close'][0])
-        adjusted_starting_capital = buy_and_hold_initial_qty * df['Close'][0]
-        cash_at_hands = adjusted_starting_capital
-
-        # Initialize strategy columns
-        buy_sell_actions_list = []
-        buy_sell_qty_list = []
-        position_value_list = []
-        cash_at_hands_list = []
-        total_equity_list = []
-
-        # Iterate over rows
-        for i, row in df.iterrows():
-
-            # Evaluate positon value that day (for condition testing in if's below)
-            position_value = position_qty * row['Close']
+        df = generate_buy_signal(df, spy_large_move=spy_large_move)
+        # Initialize strategy columns in the DataFrame
+        df['Action'] = '-'
+        df['Qty'] = 0
+        df['Unit Cost Basis'] = np.nan
+        df['Position Value'] = 0
+        df['Cash at hands'] = np.nan
+        df.loc[df.index[0], 'Cash at hands'] = df.loc[df.index[0], 'Buy and Hold Qty'] * df.loc[df.index[0], 'Close']
+        for i in range(len(df)):
+            # Get current conditions
+            if i > 0:
+                cash_at_hands = df.loc[df.index[i - 1], 'Cash at hands']
+                qty = df.loc[df.index[i-1], 'Qty']
+                unit_cost_basis = df.loc[df.index[i-1], 'Unit Cost Basis']
+            else:
+                cash_at_hands = df.loc[df.index[0], 'Cash at hands']
+                qty = 0
 
             # WAIT AND DO NOTHING
-            if in_out_status == 'OUT' and row['RS Signal'] == False:
-                # NO ACTION
-                buy_sell_actions_list.append('-')
-                # QTY
-                buy_sell_qty_list.append(position_qty)
-                # POSITION VALUE
-                position_value_list.append(position_value)
-                # CASH AT HANDS
-                cash_at_hands_list.append(cash_at_hands)
-                # Strategy Equity
-                total_equity = cash_at_hands + position_value
-                total_equity_list.append(total_equity)
-
+            if qty == 0 and (not(df.loc[df.index[i], 'Buy Signal'])):
+                df.loc[df.index[i], 'Cash at hands'] = cash_at_hands
             # ENTRY POINT (BUY)
-            elif in_out_status == 'OUT' and row['RS Signal'] == True:
-                # BUY ACTION
-                in_out_status = 'IN'
-                buy_sell_actions_list.append('BUY')
-                # QTY
-                position_qty = int(cash_at_hands / row['Close'])
-                buy_sell_qty_list.append(position_qty)
-                # POSITION VALUE
-                position_value = position_qty * row['Close']
-                entry_point_position_value = position_value
-                position_value_list.append(position_value)
-                # CASH AT HANDS
-                cash_at_hands = cash_at_hands - position_value
-                cash_at_hands_list.append(cash_at_hands)
-                # Strategy Equity
-                total_equity = cash_at_hands + position_value
-                total_equity_list.append(total_equity)
-
+            elif qty == 0 and (df.loc[df.index[i], 'Buy Signal']):
+                df.loc[df.index[i], 'Action'] = 'BUY'
+                qty_to_buy = int(cash_at_hands / df.loc[df.index[i], 'Close'])
+                df.loc[df.index[i], 'Qty'] = qty_to_buy
+                df.loc[df.index[i], 'Unit Cost Basis'] = df.loc[df.index[i], 'Close']
+                df.loc[df.index[i], 'Position Value'] = qty_to_buy * df.loc[df.index[i], 'Close']
+                df.loc[df.index[i], 'Cash at hands'] = cash_at_hands - df.loc[df.index[i], 'Position Value']
             # HOLD
-            elif in_out_status == 'IN' and (position_value - entry_point_position_value) < 1000:
-                # HOLD ACTION
-                buy_sell_actions_list.append('HOLD')
-                # QTY
-                buy_sell_qty_list.append(position_qty)
-                # POSITION VALUE
-                position_value = position_qty * row['Close']
-                position_value_list.append(position_value)
-                # CASH AT HANDS
-                cash_at_hands_list.append(cash_at_hands)
-                # Strategy Equity
-                total_equity = cash_at_hands + position_value
-                total_equity_list.append(total_equity)
-
+            elif qty > 0 and (((df.loc[df.index[i], 'Close'] - df.loc[df.index[i - 1], 'Unit Cost Basis']) /
+                               df.loc[df.index[i], 'Close']) < 0.1):
+                df.loc[df.index[i], 'Action'] = 'HOLD'
+                df.loc[df.index[i], 'Qty'] = qty
+                df.loc[df.index[i], 'Unit Cost Basis'] = df.loc[df.index[i - 1], 'Unit Cost Basis']
+                df.loc[df.index[i], 'Position Value'] = qty * df.loc[df.index[i], 'Close']
+                df.loc[df.index[i], 'Cash at hands'] = df.loc[df.index[i - 1], 'Cash at hands']
             # SELL (EXIT POINT)
-            elif in_out_status == 'IN' and (position_value - entry_point_position_value) >= 1000:
-                # SELL ACTION
-                in_out_status = 'OUT'
-                buy_sell_actions_list.append('SELL')
-                # CASH AT HANDS
-                cash_at_hands = cash_at_hands + (position_qty * row['Close'])
-                cash_at_hands_list.append(cash_at_hands)
-                # QTY
-                position_qty = 0
-                buy_sell_qty_list.append(position_qty)
-                # POSITION VALUE
-                position_value = 0
-                position_value_list.append(position_value)
-                # Strategy Equity
-                total_equity = cash_at_hands + position_value
-                total_equity_list.append(total_equity)
-
-        # Add new columns to the DataFrame
-        df['Action'] = buy_sell_actions_list
-        df['Qty'] = buy_sell_qty_list
-        df['Position Value'] = position_value_list
-        df['Cash at hands'] = cash_at_hands_list
-        df['Strategy Equity'] = total_equity_list
-
+            elif qty > 0 and (((df.loc[df.index[i], 'Close'] - df.loc[df.index[i - 1], 'Unit Cost Basis']) /
+                               df.loc[df.index[i], 'Close']) > 0.1):
+                df.loc[df.index[i], 'Action'] = 'SELL'
+                df.loc[df.index[i], 'Qty'] = 0
+                df.loc[df.index[i], 'Unit Cost Basis'] = 0
+                df.loc[df.index[i], 'Position Value'] = 0
+                df.loc[df.index[i], 'Cash at hands'] = df.loc[df.index[i - 1], 'Cash at hands'] + \
+                                                       (qty * df.loc[df.index[i], 'Close'])
+        # Once iteration completed over all rows, generate the Strategy equity column
+        df['Strategy Equity'] = df['Cash at hands'] + df['Position Value']
     return df_list
 
 
@@ -216,7 +166,8 @@ def plot_and_export_to_pdf(df_list, nb_graphs_col, nb_graphs_row, output_file_na
             if col % 2 == 0:
                 index = int((row * nb_graphs_col) + (col / 2))
                 df = df_list[index]
-                ax.plot(df.index, df['Close'])
+                ax.plot(df.index, df['Buy and Hold Equity'])
+                ax.plot(df.index, df['Strategy Equity'])
 
     pdf = matplotlib.backends.backend_pdf.PdfPages(output_file_name)  # create my multi pages pdf
     for fig in fig_list:  # iterate over the list of figures
@@ -225,42 +176,13 @@ def plot_and_export_to_pdf(df_list, nb_graphs_col, nb_graphs_row, output_file_na
     pdf.close()
     plt.close('all')  # Close all figure windows
 
-'''
-    nb_of_axes_per_page = nb_graphs_col * nb_graphs_row  # number of axes hat can be displayed on a single page
-    
-    for df_index in range(len(df_list)):  # iterate over all the data frames to plot, and create on as many figures as required (with dimensions set above)
-        if df_index % nb_of_axes_per_page == 0:  # if the remainder of df_index divided by number of axes per page is 0, then create a new figure (i.e. previous fig is full)
-            figure_number = 1 + int(df_index / nb_of_axes_per_page)
-            fig, ax_lst = plt.subplots(nb_graphs_row, nb_graphs_col)  # create a figure with a 'rows x columns' grid of axes
-            fig.suptitle('page ' + str(figure_number))
-            fig_list.append(fig)  # add the figure to the list of figures
-            # print('Just created figure ' + str(figure_number))
-        i_fig = int((np.floor(df_index / nb_graphs_col)) % nb_graphs_row)  # row position of the axes on that given figure
-        j_fig = int((df_index % nb_graphs_col))  # column position of the axes on that given figure
-
-        # print('i_fig, j_fig: ' + str(i_fig) + ', ' + str(j_fig))
-
-        df = df_list[df_index]  # df to plot at that position
-        x = df.index # ndarray with dates (index)
-        y1 = df['Buy and Hold Equity']  # 1st series to plot
-        ax_lst[i_fig, j_fig].set_title(df['Equity'][0])  # set the title of axes in i, j
-        ax_lst[i_fig, j_fig].plot(x, y1)  # plot on axes in position i, j
-        ax_lst[i_fig, j_fig].set_xticklabels([])
-        if df['Equity'][0] != 'SPY':  # plot the strategy axis only if the Equity is different from SPY
-            y2 = df['Strategy Equity']  # 2nd series to plot
-            y3 = df['SMA'] # Plotting the SMA
-            ax_lst[i_fig, j_fig].plot(x, y2)  # plot on axes in position i, j
-            ax_lst[i_fig, j_fig].plot(x, y3)  # plot on axes in position i, j
-'''
-
 
 def run_backtesting(equities_list, period, interval, spy_large_move, starting_capital, prepost=False):
     """Wrap Function that gets the data, run the overall backtesting and returns the output df_list with
     strategy columns """
     df_list = load_df_list(equities_list, 'csv')
     df_list = prepare_dataframes(df_list, equities_list, starting_capital)
-    df_list = generate_relative_strength_column(df_list, spy_large_move)
-    df_list = generate_strategy_columns(df_list, starting_capital)
+    df_list = generate_strategy_columns(df_list, spy_large_move)
     return df_list
 
 

@@ -12,4 +12,4 @@ starting_capital = 10000
 if __name__ == '__main__':
 
     df = fc.run_backtesting(equities_list, period, interval, spy_large_move, starting_capital)
-    fc.plot_and_export_to_pdf(df, 3, 3, 'output.pdf')
+    fc.plot_and_export_to_pdf(df, 4, 4, 'output.pdf')
