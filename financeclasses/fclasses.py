@@ -77,6 +77,14 @@ def prepare_dataframes(df_list, equities_list, starting_capital):
     return df_list
 
 
+def generate_relative_strength_column(df_list, spy_large_move):
+    """ Method calculating the relative strength signal and returns the list of Data Frames with
+    corresponding column added """
+    for df in df_list:
+        df['RS Signal'] = (df['SPY Change'] < spy_large_move) & (df['Change'] > 0)
+    return df_list
+
+
 def generate_strategy_columns(df_list, starting_capital):
     """ Method calculating the strategy columns (action, equity, ...) and returns Data Frame
     with corresponding columns added """
@@ -204,6 +212,11 @@ def plot_and_export_to_pdf(df_list, nb_graphs_col, nb_graphs_row, output_file_na
     for row in range(nb_row):
         for col in range(nb_col):
             ax = fig.add_subplot(spec[row, col])
+            # Plot on major axes
+            if col % 2 == 0:
+                index = int((row * nb_graphs_col) + (col / 2))
+                df = df_list[index]
+                ax.plot(df.index, df['Close'])
 
     pdf = matplotlib.backends.backend_pdf.PdfPages(output_file_name)  # create my multi pages pdf
     for fig in fig_list:  # iterate over the list of figures
@@ -246,6 +259,7 @@ def run_backtesting(equities_list, period, interval, spy_large_move, starting_ca
     strategy columns """
     df_list = load_df_list(equities_list, 'csv')
     df_list = prepare_dataframes(df_list, equities_list, starting_capital)
+    df_list = generate_relative_strength_column(df_list, spy_large_move)
     df_list = generate_strategy_columns(df_list, starting_capital)
     return df_list
 
