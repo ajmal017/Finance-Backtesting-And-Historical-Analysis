@@ -8,10 +8,20 @@ import matplotlib.ticker as mtick # to format x-axis as %
 from datetime import date
 import matplotlib
 from matplotlib import pyplot as plt # Import pyplot
+# from matplotlib.ticker import PercentFormatter
+# from matplotlib.dates import AutoDateLocator, AutoDateFormatter
 plt.close('all') # Close all figure windows
 # Matplolib configuration
 matplotlib.style.use('seaborn-talk')
 matplotlib.rcParams['lines.linewidth'] = 1
+matplotlib.rcParams['axes.titlesize'] = 8
+matplotlib.rcParams['axes.titlepad'] = 4
+matplotlib.rcParams['xtick.labelsize'] = 8
+matplotlib.rcParams['ytick.labelsize'] = 8
+matplotlib.rcParams['ytick.major.pad'] = 1
+matplotlib.rcParams['xtick.major.pad'] = 1
+
+
 
 def load_df_list(equities_list, method, period=None, interval=None):
     """Method that creates the list of Data Frames, one per Equity
@@ -69,6 +79,7 @@ def prepare_dataframes(df_list, equities_list, starting_capital):
         # Add the reference Buy and Hold strategy
         df['Buy and Hold Qty'] = int(starting_capital / df['Close'][0])
         df['Buy and Hold Equity'] = df['Buy and Hold Qty'] * df['Close']
+        df['Buy and Hold %'] = (df['Close'] / df.loc[df.index[0], 'Close']) * 100
         # Add the SMA to the equity
         df['SMA'] = df['Close'].rolling(window=10).mean() * df['Buy and Hold Qty']
         df['SMA'].fillna(method='backfill', inplace=True)
@@ -136,6 +147,14 @@ def generate_strategy_columns(df_list, spy_large_move):
                                                        (qty * df.loc[df.index[i], 'Close'])
         # Once iteration completed over all rows, generate the Strategy equity column
         df['Strategy Equity'] = df['Cash at hands'] + df['Position Value']
+        df['Strategy %'] = (df['Strategy Equity'] / df.loc[df.index[0], 'Strategy Equity']) * 100
+    # Wrap up the overall effect of the strategy on the list of equities, and compare to SPY
+    df_list_without_spy = df_list[1:]
+    initial_total_equity = sum([x.loc[x.index[0], 'Strategy Equity'] for x in df_list_without_spy])
+    for i in range(len(df_list[0])):
+        sum_of_strategy_eq = sum([x.loc[x.index[i], 'Strategy Equity'] for x in df_list_without_spy])
+        df_list[0].loc[df_list[0].index[i], 'Strategy Equity'] = sum_of_strategy_eq
+        df_list[0].loc[df_list[0].index[i], 'Strategy %'] = (sum_of_strategy_eq / initial_total_equity) * 100
     return df_list
 
 
@@ -155,9 +174,11 @@ def plot_backtesting_results(df_list, nb_graphs_col, nb_graphs_row, output_file_
     fig_list.append(fig)
     nb_col = nb_graphs_col * 2
     nb_row = nb_graphs_row
-    widths = [6, 1] * nb_graphs_col
+    widths = [8, 1] * nb_graphs_col
     heights = [1] * nb_graphs_row
     spec = fig.add_gridspec(ncols=nb_col, nrows=nb_row, width_ratios=widths, height_ratios=heights, wspace=0.1)
+    my_blue = 'tab:blue'
+    my_green = 'tab:green'
 
     for row in range(nb_row):
         for col in range(nb_col):
@@ -166,8 +187,27 @@ def plot_backtesting_results(df_list, nb_graphs_col, nb_graphs_row, output_file_
             if col % 2 == 0:
                 index = int((row * nb_graphs_col) + (col / 2))
                 df = df_list[index]
-                ax.plot(df.index, df['Buy and Hold Equity'])
-                ax.plot(df.index, df['Strategy Equity'])
+                ax.plot(df.index, df['Buy and Hold %'], color=my_blue)
+                ax.plot(df.index, df['Strategy %'], color=my_green)
+                # Format axis
+                my_y_formatter = matplotlib.ticker.PercentFormatter()
+                ax.yaxis.set_major_formatter(my_y_formatter)
+                my_date_locator = matplotlib.dates.AutoDateLocator()
+                ax.xaxis.set_major_locator(my_date_locator)
+                my_date_formatter = matplotlib.dates.DateFormatter('%b-%y')
+                ax.xaxis.set_major_formatter(my_date_formatter)
+                ax.set_title(f'{df.loc[df.index[0], "Equity"]}')
+            else:
+                index = int(np.floor((row * nb_graphs_col) + (col / 2)))
+                df = df_list[index]
+                bar_width = 0.05
+                ax.bar(x=0, height=df.loc[df.index[-1], 'Buy and Hold %'], width=bar_width,
+                       color=my_blue, alpha=0.8)
+                ax.bar(x=bar_width * 1.1, height=df.loc[df.index[-1], 'Strategy %'], width=bar_width,
+                       color=my_green, alpha=0.8)
+                my_y_formatter = matplotlib.ticker.PercentFormatter()
+                ax.yaxis.set_major_formatter(my_y_formatter)
+                ax.xaxis.set_visible(False)
     plt.show()
 
 
@@ -223,7 +263,7 @@ def plot_equity_change_distribution(equity, period):
         patch.set_color('#545454') # blackkish color
 
     for bin, patch in zip(bins[:-1], patches_sub): # format the subperiod histogram by iterating over its patches (rectangles)
-        patch.set_alpha(0.6) # set alpha (transparency)
+        patch.set_alpha(0.8) # set alpha (transparency)
         patch.set_color('#CD4343') # reddish color
 
     ax.set_xticks(bins) # set the x ticks locations, aligned with bins breakdown
