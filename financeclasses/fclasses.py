@@ -7,11 +7,11 @@ import matplotlib.backends.backend_pdf # used to generate multi page pdfs
 import matplotlib.ticker as mtick # to format x-axis as %
 from datetime import date
 import matplotlib
-# matplotlib.use("macosx") # Use that Backend for rendering, to avoid crashing of figure in PyCharm (TkAgg, macosx)
 from matplotlib import pyplot as plt # Import pyplot
 plt.close('all') # Close all figure windows
-plt.style.use('seaborn') # using a specific matplotlib style
-
+# Matplolib configuration
+matplotlib.style.use('seaborn-talk')
+matplotlib.rcParams['lines.linewidth'] = 1
 
 def load_df_list(equities_list, method, period=None, interval=None):
     """Method that creates the list of Data Frames, one per Equity
@@ -148,7 +148,7 @@ def calculate_pnl_per_equity(df_list):
     return pnl_per_equity
 
 
-def plot_and_export_to_pdf(df_list, nb_graphs_col, nb_graphs_row, output_file_name):
+def plot_backtesting_results(df_list, nb_graphs_col, nb_graphs_row, output_file_name):
     """Method that generates an output pdf from a list of dataframes, with dimension columns x rows per page """
     fig_list = []  # list of figures initialization
     fig = plt.figure(constrained_layout=True)
@@ -168,13 +168,7 @@ def plot_and_export_to_pdf(df_list, nb_graphs_col, nb_graphs_row, output_file_na
                 df = df_list[index]
                 ax.plot(df.index, df['Buy and Hold Equity'])
                 ax.plot(df.index, df['Strategy Equity'])
-
-    pdf = matplotlib.backends.backend_pdf.PdfPages(output_file_name)  # create my multi pages pdf
-    for fig in fig_list:  # iterate over the list of figures
-        pdf.savefig(fig)  # save the figure
-
-    pdf.close()
-    plt.close('all')  # Close all figure windows
+    plt.show()
 
 
 def run_backtesting(equities_list, period, interval, spy_large_move, starting_capital, prepost=False):
