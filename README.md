@@ -69,7 +69,7 @@ starting_capital = 10000.0 # Starting capital to invest: $10,000
 def generate_strategy_columns(df_list, starting_capital):
 ```
 The Data Frame proposed to support strategy implementation on a given equity is:
-![Dataframe](https://mtlberriawsbucket.s3.us-east-2.amazonaws.com/Equity_DataFrame_Backtesting.png)
+![Dataframe](https://mtlberriawsbucket.s3.us-east-2.amazonaws.com/Finance-Backtesting-And-Historical-Analysis/Equity_DataFrame_Backtesting.png)
 The module is using a list of those Data Frames to represent the strategy on the list of equities under study.
 
 4. Run backtesting:
